@@ -1,7 +1,29 @@
 # Harbor job output
 /jobs/
 
+# Python / uv
+.venv/
+__pycache__/
+*.egg-info/
+
+# API keys
+.env*
+
 # Maven
 target/
+
+# Vaadin generates these into the project dir if the frontend build ever runs
+# locally. The task image deliberately has no Node, so they must never be
+# committed or copied into it.
+node_modules/
+frontend/generated/
+vite.generated.ts
+
+# IDE metadata — must never reach a task image
+.classpath
+.project
+.settings/
+.idea/
+*.iml
 
 .DS_Store

@@ -23,9 +23,9 @@ RUN apt-get update \
 # The app is the upstream project at a pinned commit, not a copy vendored into
 # this repository. task.toml records the same URL and hash. A full clone rather
 # than --depth 1, so the checkout keeps working when the branch moves on.
-ARG BASE_SHA=141e916ed0c44cebcca41d746fb3f7533ae046a8
+ARG BASE_SHA=96d5793d384545b2de5db7096f6ebc246b1336b9
 RUN rm -rf /app \
-    && git clone https://github.com/vesanieminen/start.vaadin /app
+    && git clone https://github.com/vesanieminen/start.vaadin.plain /app
 
 WORKDIR /app
 

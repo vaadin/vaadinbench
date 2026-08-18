@@ -1,0 +1,7 @@
+# Harbor job output
+/jobs/
+
+# Maven
+target/
+
+.DS_Store

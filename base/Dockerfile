@@ -60,6 +60,17 @@ RUN apt-get update \
 
 COPY --from=warmup /root/.m2 /root/.m2
 
+# Playwright's browsers, downloaded once in the warm-up stage. Copying them keeps
+# the published image free of that download, and install-deps adds the system
+# libraries Chromium needs without pinning a distro package list here. Playwright
+# ships its own Node inside driver-bundle, so the browser half of a verifier does
+# not depend on the system node above.
+COPY --from=warmup /root/.cache/ms-playwright /root/.cache/ms-playwright
+RUN java -cp "$(find /root/.m2 -name 'playwright-*.jar' -o -name 'driver-*.jar' \
+        -o -name 'driver-bundle-*.jar' | tr '\n' ':')" \
+        com.microsoft.playwright.CLI install-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 # No WORKDIR here on purpose. A task that replaces /app wholesale (a cloned app
 # does: `rm -rf /app && git clone ... /app`) would otherwise be deleting the
 # shell's own working directory, and git then fails with "Unable to read current

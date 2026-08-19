@@ -60,4 +60,8 @@ RUN apt-get update \
 
 COPY --from=warmup /root/.m2 /root/.m2
 
-WORKDIR /app
+# No WORKDIR here on purpose. A task that replaces /app wholesale (a cloned app
+# does: `rm -rf /app && git clone ... /app`) would otherwise be deleting the
+# shell's own working directory, and git then fails with "Unable to read current
+# working directory". Each task sets its own workdir once /app exists.
+WORKDIR /

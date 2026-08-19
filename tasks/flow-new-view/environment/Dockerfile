@@ -20,6 +20,10 @@ FROM ${BASE_IMAGE}
 # this repository. task.toml records the same URL and hash. A full clone rather
 # than --depth 1, so the checkout keeps working when the branch moves on.
 ARG BASE_SHA=96d5793d384545b2de5db7096f6ebc246b1336b9
+
+# Step out of /app before replacing it: deleting the working directory the shell
+# is standing in makes git fail with "Unable to read current working directory".
+WORKDIR /
 RUN rm -rf /app \
     && git clone https://github.com/vesanieminen/start.vaadin.plain /app
 

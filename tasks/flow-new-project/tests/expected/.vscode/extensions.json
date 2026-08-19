@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "vaadin.vaadin-vscode",
+    "vscjava.vscode-java-pack",
+    "vmware.vscode-spring-boot"
+  ],
+  "unwantedRecommendations": []
+}

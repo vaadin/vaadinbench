@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.Application;
 import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserType.LaunchOptions;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Playwright;
@@ -51,7 +52,14 @@ class GridFilteringBrowserVerifierTest {
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch();
+        // Both flags are for running inside a container as root, and both belong
+        // here rather than on `docker run`: Harbor owns the container invocation,
+        // and task.toml cannot ask for a larger /dev/shm or a different IPC mode.
+        // --no-sandbox because Chromium's namespace sandbox needs privileges the
+        // trial container does not grant; --disable-dev-shm-usage because Docker's
+        // default 64 MB /dev/shm makes Chromium crash under load.
+        browser = playwright.chromium().launch(new LaunchOptions()
+                .setArgs(java.util.List.of("--no-sandbox", "--disable-dev-shm-usage")));
     }
 
     @AfterAll

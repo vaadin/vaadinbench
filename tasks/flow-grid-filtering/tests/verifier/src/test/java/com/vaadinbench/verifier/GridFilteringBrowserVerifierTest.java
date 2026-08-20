@@ -35,11 +35,20 @@ class GridFilteringBrowserVerifierTest {
     private static final String FILTER_PLACEHOLDER = "Filter by name";
     private static final int ALL_CUSTOMERS = 500;
 
-    /** A component either exists or it does not; no roundtrip to wait for. */
-    private static final double PRESENCE_TIMEOUT_MS = 2_000;
+    /**
+     * True only after the view has rendered, which {@code openView} waits for:
+     * from then on a component either exists or it does not, with no roundtrip
+     * left to wait for. Generous even so, because a component that is genuinely
+     * absent costs this once per test and nothing more.
+     */
+    private static final double PRESENCE_TIMEOUT_MS = 5_000;
 
-    /** Data has to travel to the server and back, so this one keeps headroom. */
-    private static final double DATA_TIMEOUT_MS = 15_000;
+    /**
+     * Data has to travel to the server and back, and the first render has to
+     * bootstrap the client before that. This number has to hold on the slowest
+     * machine anyone grades on rather than the fastest.
+     */
+    private static final double DATA_TIMEOUT_MS = 20_000;
 
     private static Playwright playwright;
     private static Browser browser;

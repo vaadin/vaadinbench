@@ -1,6 +1,11 @@
 # Harbor job output
 /jobs/
 
+# Agent plugins vendored by configs/vendor-plugins.sh. The commits it pins are
+# committed; the trees and the fetch cache are not.
+/configs/plugins/
+/configs/.cache/
+
 # Python / uv
 .venv/
 __pycache__/

@@ -1,6 +1,9 @@
 # Harbor job output
 /jobs/
 
+# Plugin checkouts for the configurations in README.md — cloned, not committed.
+/configs/plugins/
+
 # Python / uv
 .venv/
 __pycache__/

@@ -19,6 +19,10 @@ import org.springframework.stereotype.Repository;
  * <p>This repository stands in for a real database. Like most real backends it
  * refuses to return an unbounded result set: any request for more than
  * {@link #MAX_PAGE_SIZE} rows is rejected. Callers must page.
+ *
+ * <p>And like a real backend it is observable: every page query and every count
+ * query is recorded in {@link QueryLog}, so a test can see how many statements a
+ * screen ran and how many rows it pulled over.
  */
 @Repository
 public class CustomerRepository {
@@ -35,8 +39,10 @@ public class CustomerRepository {
             "status", Comparator.comparing(Customer::status));
 
     private final List<Customer> customers;
+    private final QueryLog queryLog;
 
-    public CustomerRepository() {
+    public CustomerRepository(QueryLog queryLog) {
+        this.queryLog = queryLog;
         this.customers = List.copyOf(loadFromCsv());
     }
 
@@ -47,19 +53,24 @@ public class CustomerRepository {
      * @param limit  maximum number of rows to return, at most {@link #MAX_PAGE_SIZE}
      * @param sorts  sort instructions, applied in order; may be empty
      * @throws IllegalArgumentException if {@code limit} exceeds {@link #MAX_PAGE_SIZE}
+     * @implNote every call is recorded in {@link QueryLog}
      */
     public List<Customer> findAll(int offset, int limit, List<CustomerSort> sorts) {
         requireSanePage(offset, limit);
-        return customers.stream()
+        List<Customer> page = customers.stream()
                 .sorted(comparatorFor(sorts))
                 .skip(offset)
                 .limit(limit)
                 .toList();
+        queryLog.recordPage(offset, limit, page.size());
+        return page;
     }
 
     /** Returns the total number of customers. */
     public int count() {
-        return customers.size();
+        int total = customers.size();
+        queryLog.recordCount(total);
+        return total;
     }
 
     private static void requireSanePage(int offset, int limit) {

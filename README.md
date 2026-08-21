@@ -54,9 +54,16 @@ all of that instead of the token:
 ```bash
 claude setup-token                     # copy the sk-ant-oat… line it prints
 export CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat…
-uv run harbor run -p tasks -a claude-code -m anthropic/claude-opus-5 \
-  --ae CLAUDE_FORCE_OAUTH=1
+export CLAUDE_FORCE_OAUTH=1
+uv run harbor run -p tasks -a claude-code -m anthropic/claude-opus-5
 ```
+
+Exported, not passed as `--ae CLAUDE_FORCE_OAUTH=1`. Harbor reads it from the
+environment either way, but as an agent environment variable the name matches its
+secret pattern, so it replaces that value — every `1` — with `[REDACTED]` across
+every trial artifact, leaving each trial's `result.json`, `lock.json` and
+`agent/trajectory.json` invalid JSON while the job level still looks fine. `true`
+is no better; any short value has this problem.
 
 **4. Read the result.** Each trial writes a binary reward and the diff of whatever
 the agent changed:

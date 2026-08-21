@@ -59,7 +59,9 @@ class ContactViewVerifierTest extends SpringBrowserlessTest {
         assertEquals("", emailField().getValue(), "The e-mail field must start out empty");
         assertEquals("", phoneField().getValue(), "The phone field must start out empty");
         assertEquals("", messageField().getValue(), "The message field must start out empty");
-        assertTrue(sendButton().isEnabled(), "The Send button must be enabled");
+        assertTrue(sendButton().isEnabled(),
+                "The Send button must be enabled on an untouched form; it is disabled only "
+                        + "between a successful send and the next edit");
     }
 
     @Test

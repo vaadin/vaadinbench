@@ -68,17 +68,30 @@ with open(out, "w") as handle:
 }
 
 # Prints the candidates the comma-separated patterns select, in candidate order and
-# without repeats. A pattern is matched as a glob and, as a convenience, also as a
-# substring — so `-m sonnet` finds anthropic/claude-sonnet-5. A pattern that selects
-# nothing is a typo worth stopping for rather than silently running less.
-select_matching() {
-  local kind=$1 patterns=$2 candidates=$3
+# without repeats. A pattern is matched as a glob against the whole name, so a name
+# is exactly itself and nothing longer — `-c vaadin-skills` is not
+# vaadin-skills-tools, and `-c 'vaadin-skills*'` is both. Model names are the
+# exception: they are long and provider-prefixed, so a pattern with no glob in it
+# also matches as a substring, and `-m sonnet` finds anthropic/claude-sonnet-5.
+# A pattern that selects nothing is a typo worth stopping for rather than silently
+# running less.
+matches() { # candidate, pattern, substring-ok
+  local candidate=$1 pattern=$2 substring=$3
+  # shellcheck disable=SC2053  # the glob in $pattern is the point
+  [[ $candidate == $pattern ]] && return 0
+  if [[ -n $substring && $pattern != *[*?[]* && $candidate == *"$pattern"* ]]; then
+    return 0
+  fi
+  return 1
+}
+
+select_matching() { # kind, patterns, candidates, substring-ok
+  local kind=$1 patterns=$2 candidates=$3 substring=${4:-}
   local pattern candidate hit selected=""
   for pattern in $(echo "$patterns" | tr ',' ' '); do
     hit=""
     for candidate in $candidates; do
-      # shellcheck disable=SC2053  # the glob in $pattern is the point
-      if [[ $candidate == $pattern || $candidate == *"$pattern"* ]]; then
+      if matches "$candidate" "$pattern" "$substring"; then
         hit=yes
       fi
     done
@@ -92,8 +105,7 @@ select_matching() {
   done
   for candidate in $candidates; do
     for pattern in $(echo "$patterns" | tr ',' ' '); do
-      # shellcheck disable=SC2053
-      if [[ $candidate == $pattern || $candidate == *"$pattern"* ]]; then
+      if matches "$candidate" "$pattern" "$substring"; then
         selected="$selected$candidate
 "
         break
@@ -114,9 +126,9 @@ Usage
   ./vaadin-bench.sh [options]            a subset of it
   ./vaadin-bench.sh                      this listing
 
-Selection — repeatable and comma-separated; globs and substrings both work
+Selection — repeatable and comma-separated; a name is exact, and * globs
   -c, --config NAME       configurations to run                (default: all)
-  -m, --model NAME        models within them                   (default: all)
+  -m, --model NAME        models within them, matched loosely   (default: all)
   -t, --task NAME         tasks to run                         (default: all)
 
 Run
@@ -245,7 +257,7 @@ printf 'vaadin-bench: %s configuration(s), %s task(s), %s attempt(s) each\n' \
 for config in $configs; do
   config_file="configs/$config.yaml"
   if [[ -n $models_arg ]]; then
-    models=$(select_matching model "$models_arg" "$(models_of "$config")")
+    models=$(select_matching model "$models_arg" "$(models_of "$config")" substring)
     config_file="$work/$config.yaml"
     write_filtered_config "$config" "$config_file" $models
     printf 'vaadin-bench: %s — %s\n' "$config" "$(echo $models | tr '\n' ' ')"

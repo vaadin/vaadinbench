@@ -174,9 +174,12 @@ arguments prints the options next to the configurations, models and tasks it fou
 ./vaadin-bench.sh --default -- --upload --private        # pass flags through to harbor
 ```
 
-`-c`, `-m` and `-t` are repeatable and comma-separated, and match as globs or as
-substrings — `-m sonnet` is `anthropic/claude-sonnet-5`. A pattern that matches
-nothing is an error rather than a quietly smaller run. `-m` needs a configuration
+`-c`, `-m` and `-t` are repeatable and comma-separated. A name matches itself and
+nothing longer, so `-c vaadin-skills` is that one file and `-c 'vaadin-skills*'` is
+it and `vaadin-skills-tools`. Model names are the exception — long and
+provider-prefixed, so a pattern without a `*` in it also matches as a substring, and
+`-m sonnet` is `anthropic/claude-sonnet-5`. A pattern that matches nothing is an
+error rather than a quietly smaller run. `-m` needs a configuration
 of its own, since Harbor's own `-m` is ignored unless `-a` comes with it and `-a`
 would discard the plugin settings; the script writes the narrowed configuration to
 a scratch file, which `--dry-run` leaves in place so the printed command still runs.

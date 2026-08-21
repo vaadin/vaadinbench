@@ -46,10 +46,14 @@ export ANTHROPIC_API_KEY=...
 uv run harbor run -p tasks -a claude-code -m anthropic/claude-opus-5
 ```
 
-A Claude subscription works instead of an API key:
+A Claude subscription works instead of an API key. Run `claude setup-token` on its
+own and copy the token it prints — it is an interactive command that draws a
+browser prompt and a banner around the token, so `$(claude setup-token)` captures
+all of that instead of the token:
 
 ```bash
-export CLAUDE_CODE_OAUTH_TOKEN=$(claude setup-token)
+claude setup-token                     # copy the sk-ant-oat… line it prints
+export CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat…
 uv run harbor run -p tasks -a claude-code -m anthropic/claude-opus-5 \
   --ae CLAUDE_FORCE_OAUTH=1
 ```

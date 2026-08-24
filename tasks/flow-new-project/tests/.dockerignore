@@ -1,0 +1,14 @@
+# The verifier build context comes from the evaluator's working copy. Exclude
+# everything an IDE or local build can leave inside the recorded project while
+# retaining generator-owned .vscode/ and .mvn/ files.
+**/target
+**/.git
+**/node_modules
+**/.settings
+**/.idea
+**/*.iml
+**/.project
+**/.classpath
+**/.DS_Store
+**/vite.generated.ts
+**/src/main/frontend/generated

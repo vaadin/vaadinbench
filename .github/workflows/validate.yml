@@ -5,6 +5,49 @@ on:
   pull_request:
 
 jobs:
+
+  recording-is-a-recording:
+    name: tests/expected holds the download and nothing else
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Harbor uploads tests/ from a working copy rather than exporting it from
+      # git, so an IDE or a local `mvn` writing into tests/expected ships with the
+      # task. The generated project brings its own .gitignore, which covers
+      # exactly those paths, so `git status` stays silent and the first sign of
+      # trouble is every model scoring 0 on files no download ever contained.
+      #
+      # The recording must therefore be exactly its tracked files. That also
+      # catches the opposite slip the skeleton-drift workflow warns about: the
+      # same .gitignore hides .vscode/ from `git add`, so a re-recording can end
+      # up committing fewer files than the download had.
+      - name: The recording is exactly the files git tracks
+        run: |
+          status=0
+          for task in tasks/*/; do
+            task="${task%/}"
+            name=$(basename "$task")
+            recorded="$task/tests/expected"
+            [ -d "$recorded" ] || continue
+
+            git ls-files "$recorded" | sed "s#^$recorded/##" | sort >/tmp/tracked.txt
+            (cd "$recorded" && find . -type f | sed 's#^\./##') | sort >/tmp/present.txt
+
+            if ! diff -u /tmp/tracked.txt /tmp/present.txt >/tmp/recording.diff; then
+              cat /tmp/recording.diff
+              echo "::error::$name: tests/expected is not exactly the files git tracks." \
+                   "A line only in the tracked list is a file the recording lost —" \
+                   "the project's own .gitignore hides .vscode/, so commit it with" \
+                   "\`git add -f\`. A line only in the present list is build or IDE" \
+                   "output that would be uploaded to /tests and graded against —" \
+                   "run \`git clean -xfd $recorded\`."
+              status=1
+              continue
+            fi
+            echo "$name: ok ($(wc -l </tmp/tracked.txt | tr -d ' ') recorded files)"
+          done
+          exit $status
   protected-config:
     name: Verifier config matches the task app
     runs-on: ubuntu-latest

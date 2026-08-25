@@ -1,0 +1,12 @@
+.gitignore
+.mvn/wrapper/maven-wrapper.properties
+.vscode/extensions.json
+Dockerfile
+LICENSE.md
+README.md
+mvnw
+mvnw.cmd
+pom.xml
+src/main/java/com/example/Application.java
+src/main/resources/META-INF/resources/styles.css
+src/main/resources/application.properties

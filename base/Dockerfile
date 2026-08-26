@@ -138,10 +138,15 @@ RUN case "$TARGETARCH" in \
 #
 # A directory under ~/.claude/skills/ is a Claude Code plugin, auto-loaded as
 # <name>@skills-dir with its skills, hooks and MCP servers, and Harbor's Claude
-# Code adapter seeds each run's config directory from there. The Codex
-# configurations reuse the same clone rather than making a second one: they point
-# skills_dir at vaadin-skills/skills, which the Codex adapter copies into
-# ~/.agents/skills/. So one commit pins the skills for both agents. So the image carries
+# Code adapter seeds each run's config directory from there.
+#
+# The Codex configurations reuse the same clone rather than making a second one,
+# through the /root/agent-skills symlink below: they point skills_dir at it, and
+# the Codex adapter copies what it resolves to into the directory Codex reads. A
+# symlink rather than a copy because there is then only one tree and one commit
+# behind both agents; a neutral name rather than the .claude path it resolves to
+# because a Codex configuration reading ~/.claude/... looks like a mistake, and a
+# reader should not have to check whether it is one. So the image carries
 # the plugins and every configuration under configs/ then enables or disables them
 # by name — nothing is cloned, mounted or installed at run time.
 #
@@ -166,6 +171,7 @@ RUN mkdir -p /root/.claude/skills \
     && git -C /root/.claude/skills/vaadin-agent-tools checkout -q "$VAADIN_AGENT_TOOLS_SHA" \
     && rm -rf /root/.claude/skills/vaadin-skills/.git \
               /root/.claude/skills/vaadin-agent-tools/.git \
+    && ln -sfn /root/.claude/skills/vaadin-skills/skills /root/agent-skills \
     && claude plugin list
 
 # No WORKDIR here on purpose. A task that replaces /app wholesale (a cloned app

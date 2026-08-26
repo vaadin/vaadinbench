@@ -9,7 +9,7 @@
 # The base below is pulled from GHCR, named by the digest the base-image workflow
 # writes here. Why a digest and not the version tag, and how to point it at a base
 # you built yourself: README, "Quickstart".
-ARG BASE_IMAGE=ghcr.io/vesanieminen/vaadinbench-base:25.2.6-jdk25
+ARG BASE_IMAGE=ghcr.io/vesanieminen/vaadinbench-base@sha256:62e00f7246dd749de09831f9c7ad47dfd1d7d36eb0e6bfdf689bc380c39fa8d0
 FROM ${BASE_IMAGE}
 
 WORKDIR /app

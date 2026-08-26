@@ -11,6 +11,18 @@
 # tasks/ is a trigger as much as base/ is: the warm-up resolves each task's
 # dependencies, so a new task or a changed pom means the published image no longer
 # has everything a task build needs offline.
+#
+# Two architectures, each built on a runner of its own rather than under emulation
+# — a warm-up that takes twenty minutes natively does not finish under qemu, and
+# an amd64-only image would leave this repository's own Apple Silicon machines
+# either emulating x86 or failing outright. The two are published as one manifest
+# list, so a task's `FROM` resolves to the right one with nothing to choose.
+#
+# The last step commits the manifest list's digest into every task Dockerfile.
+# That is what makes the publication usable: Harbor names a task image by hashing
+# the task's build context, so a moving tag would leave every existing checkout
+# running its cached task images on the base they were built from. A digest that
+# changes in the file changes the hash, and the rebuild happens on its own.
 name: base-image
 
 on:
@@ -30,37 +42,64 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The stack this base carries. Never bumped in place — a new stack is a new tag
-  # and a new task version — and it must be the tag every task Dockerfile defaults
-  # to, which the first step below checks rather than trusts.
+  # The stack this base carries, for the tag a human reads. What the task images
+  # actually build on is the digest pinned below — never bumped in place, because
+  # a new stack is a new task version.
   VERSION: 25.2.6-jdk25
 
 jobs:
-  publish:
-    name: Build and publish the base image
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
-      - name: The tag published is the tag every task builds on
+      # The tasks must agree on one base, and it must be this one. They are the
+      # only functional copies of the reference: the controls workflow reads it out
+      # of them, and the step at the end of this workflow rewrites it in them.
+      - name: Every task builds on one base, and it is this one
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          image="ghcr.io/$owner/vaadinbench-base"
-          echo "IMAGE=$image" >>"$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/$owner/vaadinbench-base" >>"$GITHUB_ENV"
+          files=$(ls tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile)
           status=0
-          for dockerfile in tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile; do
-            want="ARG BASE_IMAGE=$image:$VERSION"
-            if ! grep -qxF "$want" "$dockerfile"; then
-              echo "::error file=$dockerfile::does not default to $image:$VERSION," \
-                   "so it would not use the image this workflow publishes"
+          for file in $files; do
+            declared=$(grep -c '^ARG BASE_IMAGE=' "$file")
+            if [ "$declared" != "1" ]; then
+              echo "::error file=$file::declares $declared ARG BASE_IMAGE= lines, want 1"
               status=1
             fi
           done
-          exit $status
+          [ "$status" = "0" ] || exit 1
+          refs=$(grep -h '^ARG BASE_IMAGE=' $files | sed 's/^ARG BASE_IMAGE=//' | sort -u)
+          if [ "$(echo "$refs" | wc -l | tr -d ' ')" != "1" ]; then
+            echo "::error::the task Dockerfiles do not agree on one base:"
+            echo "$refs" | sed 's/^/::error::  /'
+            exit 1
+          fi
+          case "$refs" in
+            "ghcr.io/$owner/vaadinbench-base"[@:]*) echo "base: $refs" ;;
+            *)
+              echo "::error::the task Dockerfiles build on $refs, which is not the" \
+                   "image this workflow publishes"
+              exit 1 ;;
+          esac
+
+      - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
         with:
@@ -68,19 +107,113 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Two tags for one image: the version tag is what the task Dockerfiles
-      # default to, and the commit tag is what a published result can be traced
-      # back to. The digest printed at the end is the immutable reference — pass it
-      # as --build-arg BASE_IMAGE=…@sha256:… to pin a run to exactly this build.
-      - name: Build and push
+      # Pushed by digest and left untagged: the tags belong on the manifest list
+      # the next job assembles, not on either half of it.
+      - name: Build and push ${{ matrix.platform }}
         run: |
-          docker build \
-            -t "$IMAGE:$VERSION" \
-            -t "$IMAGE:${{ github.sha }}" \
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --provenance=false \
+            --metadata-file /tmp/metadata.json \
+            --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
             --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
             --label org.opencontainers.image.revision=${{ github.sha }} \
             -f base/Dockerfile .
-          docker push "$IMAGE:$VERSION"
-          docker push "$IMAGE:${{ github.sha }}"
-          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION")
-          echo "Published $digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p /tmp/digests
+          python3 -c "import json; print(json.load(open('/tmp/metadata.json'))['containerimage.digest'])" \
+            >"/tmp/digests/${{ matrix.arch }}"
+          cat "/tmp/digests/${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: /tmp/digests/${{ matrix.arch }}
+          if-no-files-found: error
+
+  publish:
+    name: Tag, verify and pin
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assemble the manifest list
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          image="ghcr.io/$owner/vaadinbench-base"
+          refs=""
+          for digest in /tmp/digests/*; do
+            refs="$refs $image@$(cat "$digest")"
+          done
+          docker buildx imagetools create \
+            -t "$image:$VERSION" -t "$image:${{ github.sha }}" $refs
+          list=$(docker buildx imagetools inspect "$image:$VERSION" \
+                 --format '{{.Manifest.Digest}}')
+          echo "OWNER=$owner" >>"$GITHUB_ENV"
+          echo "IMAGE=$image" >>"$GITHUB_ENV"
+          echo "LIST_DIGEST=$list" >>"$GITHUB_ENV"
+          docker buildx imagetools inspect "$image@$list"
+
+      # A package pushed to GHCR for the first time is private, and nothing in a
+      # push makes it public — not the source label, which grants this repository's
+      # collaborators access and no one else. So the promise the README makes, that
+      # a clone and a Harbor run are the whole setup, is checked here the way a new
+      # user meets it: an anonymous pull token, and the manifest fetched with it.
+      # No Docker credentials are involved, so a logged-in daemon cannot mask a
+      # private package.
+      - name: The published image is pullable by anyone
+        run: |
+          token=$(curl -fsSL \
+            "https://ghcr.io/token?service=ghcr.io&scope=repository:$OWNER/vaadinbench-base:pull" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          if ! curl -fsS -o /dev/null \
+                 -H "Authorization: Bearer $token" \
+                 -H "Accept: application/vnd.oci.image.index.v1+json" \
+                 -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+                 "https://ghcr.io/v2/$OWNER/vaadinbench-base/manifests/$LIST_DIGEST"; then
+            echo "::error::$IMAGE is not readable anonymously, so a clone of this" \
+                 "repository cannot pull it. Make the package public once, at" \
+                 "https://github.com/users/$OWNER/packages/container/vaadinbench-base/settings" \
+                 "— GitHub offers no API for a container package's visibility, so" \
+                 "this is a one-time manual step."
+            exit 1
+          fi
+          echo "anonymous pull ok: $IMAGE@$LIST_DIGEST"
+
+      # The digest, into the files that decide what a task builds on. Committing it
+      # is what invalidates Harbor's task-image cache, so an existing checkout picks
+      # the new base up by pulling rather than by being told to --force-build.
+      # [skip ci] on the commit: it touches tasks/, which would otherwise trigger
+      # this workflow again to publish the identical image.
+      - name: Pin the digest into every task Dockerfile
+        run: |
+          ref="$IMAGE@$LIST_DIGEST"
+          sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$ref|" \
+            tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
+          if git diff --quiet; then
+            echo "already pinned to $ref" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "Pin the task images to the base built for ${{ github.sha }} [skip ci]"
+          git push origin HEAD:main
+          echo "Published and pinned $ref" | tee -a "$GITHUB_STEP_SUMMARY"

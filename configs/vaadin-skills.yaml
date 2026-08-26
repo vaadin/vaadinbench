@@ -40,8 +40,7 @@ agents:
 
   - name: codex
     model_name: openai/gpt-5.6-luna
-    extra_allowed_hosts: &codex_hosts [api.openai.com, mcp.vaadin.com]
-    # extra_allowed_hosts: &codex_hosts [chatgpt.com, auth.openai.com, mcp.vaadin.com]
+    extra_allowed_hosts: &codex_hosts [api.openai.com, chatgpt.com, auth.openai.com, mcp.vaadin.com]
     mcp_servers: &servers
       - name: vaadin
         transport: http

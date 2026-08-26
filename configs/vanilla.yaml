@@ -11,8 +11,14 @@
 # is a row in it, and the model is selected at run time with `-m`.
 #
 # Codex needs its model API host named; Claude's is already in each task.toml.
-# For a ChatGPT subscription rather than an API key, swap the commented line in
-# on the first Codex row — the others alias it — after:
+# All three of its hosts are listed, so a run works on either auth route with no
+# edit here: `api.openai.com` is what an API key talks to, and a ChatGPT
+# subscription talks to `chatgpt.com/backend-api` instead, refreshing its token
+# against `auth.openai.com`. The unused one is simply never dialled — the cost of
+# naming it is that this list is no longer the narrowest statement of what a run
+# opened, so read auth_mode in ~/.codex/auth.json to know which route was live.
+#
+# A subscription also needs, before the run:
 #
 #   codex login                        # writes ~/.codex/auth.json
 #   export CODEX_FORCE_AUTH_JSON=1
@@ -41,8 +47,7 @@ agents:
 
   - name: codex
     model_name: openai/gpt-5.6-luna
-    extra_allowed_hosts: &codex_hosts [api.openai.com]
-    # extra_allowed_hosts: &codex_hosts [chatgpt.com, auth.openai.com]
+    extra_allowed_hosts: &codex_hosts [api.openai.com, chatgpt.com, auth.openai.com]
 
   - name: codex
     model_name: openai/gpt-5.6-terra

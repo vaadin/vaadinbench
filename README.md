@@ -257,19 +257,24 @@ secret pattern on `AUTH`, and the consequence is exactly the one `CLAUDE_FORCE_O
 has above: every `1` in every trial artifact becomes `[REDACTED]`. `CODEX_AUTH_JSON_PATH`,
 which names an `auth.json` somewhere other than `~/.codex/`, has the same problem.
 
-**Subscription auth needs different hosts.** It does not talk to `api.openai.com`:
-it talks to `chatgpt.com/backend-api`, and refreshes the token against
-`auth.openai.com` — which matters for a sweep long enough to outlive one access
-token, because each trial refreshes inside its own container and never writes back
-to your copy. Every condition with Codex rows carries both lists, one commented out:
+**Subscription auth uses different hosts**, and both routes are listed so neither
+needs an edit before a run:
 
 ```yaml
-    extra_allowed_hosts: &codex_hosts [api.openai.com]
-    # extra_allowed_hosts: &codex_hosts [chatgpt.com, auth.openai.com]
+    extra_allowed_hosts: &codex_hosts [api.openai.com, chatgpt.com, auth.openai.com]
 ```
 
-Swap the comment on the first Codex row only; the rest alias it. `flow-new-project`
-is unaffected either way, since its agent phase is `network_mode = "public"`.
+An API key talks to `api.openai.com`. A subscription does not: it talks to
+`chatgpt.com/backend-api` and refreshes its token against `auth.openai.com` — which
+matters for a sweep long enough to outlive one access token, because each trial
+refreshes inside its own container and never writes back to your copy. Whichever
+route is live, the other host is never dialled.
+
+The cost is that this list is no longer the narrowest true statement of what a run
+opened; `auth_mode` in `~/.codex/auth.json` is what says which route was actually
+used. Narrow it back by hand for a run whose allowlist you want to be able to
+defend line by line. `flow-new-project` is unaffected either way, since its agent
+phase is `network_mode = "public"`.
 
 The CLI itself is baked into the base image, pinned by `CODEX_VERSION`, from the
 GitHub release tarball rather than npm — `codex` is a Rust binary, and taking it

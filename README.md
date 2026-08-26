@@ -386,12 +386,17 @@ makes the publication usable rather than merely available: an existing checkout
 picks the new base up because the digest in its build context changed. Those six
 lines are the only functional copy of the reference, so
 `.github/scripts/base-image-reference.sh` holds them to one value naming the
-published image, and both `validate` and `base-image` run it — the first because a
-pull request has to fail on a committed local override rather than a merge having
-to. The publish also checks, with an anonymous pull token and no Docker
-credentials, that the package can be read by someone who is not a collaborator: a
-GHCR package is private when first pushed, and making it public is a one-time
-manual step GitHub offers no API for.
+published image, in one of the two shapes that resolve — the bootstrap tag or a
+whole digest. Both `validate` and `base-image` run it, the first because a pull
+request has to fail on a committed local override rather than a merge having to,
+and it decides everything from the files: no registry, nothing to be flaky.
+
+Whether that digest is really pullable is asked once instead, by the publish job
+that wrote it, with an anonymous pull token and no Docker credentials — a GHCR
+package is private when first pushed, and making it public is a one-time manual
+step GitHub offers no API for. That probe reads an unreachable or rate-limiting
+registry as unknown rather than as a refusal, which is the distinction
+`.github/scripts/test-anonymous-pull.sh` pins down against a stub `curl`.
 
 The stack is never upgraded in place: a new stack means a new tag and a new task
 version. A task build resolves no dependencies at all — it runs `mvn -B -o test`

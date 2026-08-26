@@ -17,7 +17,12 @@
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/vb-anonymous-pull-test.XXXXXX")
+# Checked before anything is written under it, and before the trap that would
+# delete it. This script does not set -e on purpose, so an unset WORK would make
+# every path below absolute: $WORK/bin/curl is /bin/curl, which as root is the
+# real one, truncated.
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/vb-anonymous-pull-test.XXXXXX") || exit 1
+[ -n "$WORK" ] && [ -d "$WORK" ] || exit 1
 trap 'rm -rf "$WORK"' EXIT
 
 # Answers from the queue in $VB_STUB_QUEUE, writing the body the real one would

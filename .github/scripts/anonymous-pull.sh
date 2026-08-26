@@ -7,9 +7,12 @@
 # token and no Docker credentials, so a logged-in daemon cannot make a private
 # package look readable.
 #
-# Two callers, one policy: the base-image workflow asks it of the digest it has
-# just published, and base-image-reference.sh asks it of the digest committed into
-# the task Dockerfiles. Written once so their retry and outage rules cannot drift.
+# Asked once, by the base-image workflow, of the digest it has just published — the
+# moment the answer is both knowable and worth acting on. A pull request does not
+# ask it: base-image-reference.sh decides the shape of the committed reference from
+# the files alone, so ordinary validation depends on no external service. What is
+# left for this to catch is the one thing a shape cannot: a package GitHub keeps
+# private, which is how every package starts.
 #
 # Both requests are classified the same way, because either can be the one that
 # fails and their failures mean different things:
@@ -37,7 +40,10 @@ image="ghcr.io/$repository"
 # polite to.
 retry_delay=${VB_RETRY_DELAY:-2}
 
+# Nowhere to put the response body is nothing this can say about the reference —
+# and an unset work would make the body path absolute. Checked, not assumed.
 work=$(mktemp -d "${TMPDIR:-/tmp}/vb-registry.XXXXXX") || exit 0
+[ -n "$work" ] && [ -d "$work" ] || exit 0
 trap 'rm -rf "$work"' EXIT
 
 # One request under the policy above. Prints the verdict — `ok`, `unknown <why>`

@@ -6,18 +6,21 @@
 # Dockerfile is the only functional copy of that reference: Harbor builds a task's
 # images itself and passes no build args, the base-image workflow rewrites those
 # lines when it publishes, and the controls workflow rewrites them to whatever it
-# just built. So the six of them have to agree, they have to name the published
-# image, and the reference has to be one a stranger can actually resolve.
+# just built. So the six of them have to agree, and they have to name the published
+# image in one of the two shapes that resolve: the bootstrap tag, or a whole digest.
 #
-# That last part is why this is strict rather than a pattern match. Nothing else on
-# a pull request would notice a broken reference: the controls workflow replaces
-# these lines before it builds anything, and a task Dockerfile is deliberately not
-# one of the paths that trigger a publication. A truncated digest or a tag that
-# does not exist would surface on somebody's laptop after the merge.
+# Strict about that shape rather than pattern-matching it, because nothing else on a
+# pull request would notice: the controls workflow replaces these lines before it
+# builds anything, and a task Dockerfile is deliberately not one of the paths that
+# trigger a publication. A truncated digest or a stray local override would surface
+# on somebody's laptop after the merge.
 #
-# Shared by the validate and base-image workflows rather than written twice: the
-# check has to run on a pull request, where the publication that would otherwise
-# have caught it does not.
+# What this does not do is ask a registry. Everything here is decided from the
+# files, so the check is offline, deterministic, and the same on a laptop as on a
+# runner. Whether the digest is really there is settled once, by the workflow that
+# wrote it, immediately after publishing it — .github/scripts/anonymous-pull.sh.
+#
+# Shared by the validate and base-image workflows rather than written twice.
 #
 # $1 the image the reference must name, with no tag or digest
 # Prints the single reference on success.
@@ -25,7 +28,6 @@
 set -uo pipefail
 
 image=${1:?the image the reference must name}
-repository=${image#*/}
 version=$(tr -d '[:space:]' <base/stack-version.txt)
 files=$(ls tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile)
 status=0
@@ -56,11 +58,6 @@ case "$refs" in
                  "to nothing and every task build fails on it."
             exit 1
         fi
-        # A digest nobody outside this repository can resolve is worse than a
-        # tag: every task build fails on it, and nothing else on a pull request
-        # would notice, since the controls workflow rewrites these lines before it
-        # builds and a task Dockerfile is not a publication trigger.
-        bash "$(dirname "$0")/anonymous-pull.sh" "$repository" "$digest" || exit 1
         ;;
     "$image:$version")
         # The bootstrap state, and only this exact tag: what this repository ships

@@ -178,9 +178,17 @@ jobs:
       # pull proves the promise, and a registry that cannot be reached leaves it
       # unproven — a reason to rerun this workflow, which verifies and pins the
       # same digest.
+      #
+      # `run: |` rather than a bare scalar with a backslash: YAML folds a plain
+      # multi-line scalar's newline into a space, which leaves the continuation as
+      # a literal `\ ` for bash to read as an escaped space and glue onto the next
+      # word. The repository argument then arrives with a leading space, the URL is
+      # malformed, and the registry never answers — reported as an outage, because
+      # from inside the script that is exactly what it looks like.
       - name: The published image is pullable by anyone
-        run: bash .github/scripts/anonymous-pull.sh \
-          "$OWNER/vaadinbench-base" "$LIST_DIGEST"
+        run: |
+          bash .github/scripts/anonymous-pull.sh \
+            "$OWNER/vaadinbench-base" "$LIST_DIGEST"
 
       # The digest, into the files that decide what a task builds on. Committing it
       # is what invalidates Harbor's task-image cache, so an existing checkout picks

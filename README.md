@@ -188,6 +188,34 @@ export OPENAI_API_KEY=...
 ./vaadin-bench.sh -c 'codex-*' -m gpt-5.3 -t flow-new-view -k 1
 ```
 
+A ChatGPT subscription works instead of an API key, the way a Claude one does.
+`codex login` writes `~/.codex/auth.json`, and Harbor uploads that file into each
+trial rather than synthesising one from the key:
+
+```bash
+codex login                            # writes ~/.codex/auth.json
+export CODEX_FORCE_AUTH_JSON=1
+```
+
+Exported, not passed as `--ae CODEX_FORCE_AUTH_JSON=1` — the name matches Harbor's
+secret pattern on `AUTH`, and the consequence is exactly the one `CLAUDE_FORCE_OAUTH`
+has above: every `1` in every trial artifact becomes `[REDACTED]`. `CODEX_AUTH_JSON_PATH`,
+which names an `auth.json` somewhere other than `~/.codex/`, has the same problem.
+
+**Subscription auth needs different hosts.** It does not talk to `api.openai.com`:
+it talks to `chatgpt.com/backend-api`, and refreshes the token against
+`auth.openai.com` — which matters for a sweep long enough to outlive one access
+token, because each trial refreshes inside its own container and never writes back
+to your copy. Both configurations carry both lists, one commented out:
+
+```yaml
+    extra_allowed_hosts: &hosts [api.openai.com]
+    # extra_allowed_hosts: &hosts [chatgpt.com, auth.openai.com]
+```
+
+Swap the comment on the first agent only; the rest alias it. `flow-new-project` is
+unaffected either way, since its agent phase is `network_mode = "public"`.
+
 `codex-vaadin-skills.yaml` gives Codex what `vaadin-skills.yaml` gives Claude, by
 a different route, because Codex reads neither Claude's plugins nor their
 `.mcp.json`:

@@ -18,11 +18,25 @@
 #
 # Codex has no equivalent of enabledPlugins, so there is nothing to switch off:
 # codex-vanilla.yaml is the off state, and it is the same file minus these two keys.
+#
+# Two host lists, one commented out, as in codex-vanilla.yaml — mcp.vaadin.com is
+# in both, because the documentation server is reached the same way whichever end
+# of the model API you authenticate against. An API key talks to api.openai.com; a
+# ChatGPT subscription talks to chatgpt.com/backend-api and refreshes auth.json
+# against auth.openai.com. Swap the commented line in for that, after:
+#
+#   codex login                        # writes ~/.codex/auth.json
+#   export CODEX_FORCE_AUTH_JSON=1
+#
+# Exported, not passed as `--ae CODEX_FORCE_AUTH_JSON=1`: the name matches Harbor's
+# secret pattern on AUTH, and every `1` in every trial artifact becomes [REDACTED].
+# codex-vanilla.yaml spells out what that breaks.
 
 agents:
   - name: codex
     model_name: openai/gpt-5.3-codex
     extra_allowed_hosts: &hosts [api.openai.com, mcp.vaadin.com]
+    # extra_allowed_hosts: &hosts [chatgpt.com, auth.openai.com, mcp.vaadin.com]
     mcp_servers: &servers
       - name: vaadin
         transport: http

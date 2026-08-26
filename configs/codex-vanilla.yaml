@@ -6,11 +6,30 @@
 # against — a Codex number is only comparable to another Codex number, because
 # the CLI, its harness and its default reasoning effort all differ from Claude's.
 #
-# api.openai.com is named here rather than in each task.toml: the two closed
+# The model API host is named here rather than in each task.toml: the two closed
 # tasks allowlist api.anthropic.com and nothing else, and extra_allowed_hosts is
 # merged into that allowlist for the agent phase alone. Adding it to the tasks
 # instead would change every task's environment hash and oblige a new task
 # version, for a host no Claude configuration needs.
+#
+# Which host that is depends on how you authenticate, so both lists are below and
+# one of them is commented out. An API key talks to api.openai.com. A ChatGPT
+# subscription does not: it talks to chatgpt.com/backend-api, and refreshes the
+# token in auth.json against auth.openai.com — which a sweep long enough to
+# outlive one access token needs open too. Swap the commented line in for that:
+#
+#   codex login                        # writes ~/.codex/auth.json
+#   export CODEX_FORCE_AUTH_JSON=1
+#
+# Exported, not passed as `--ae CODEX_FORCE_AUTH_JSON=1`. The name matches
+# Harbor's secret pattern on AUTH, so as an agent environment variable its value
+# — every `1` — is replaced with [REDACTED] across every trial artifact, leaving
+# result.json, lock.json and agent/trajectory.json invalid JSON while the job
+# level still looks fine. This is the same trap CLAUDE_FORCE_OAUTH has, and
+# CODEX_AUTH_JSON_PATH has it too.
+#
+# flow-new-project is unaffected either way: its agent phase is network_mode
+# "public", so nothing is allowlisted there.
 #
 # Codex is baked into the base image, so no configuration here installs it. Its
 # reasoning effort is Harbor's default of `high`; that is part of what is being
@@ -20,6 +39,7 @@ agents:
   - name: codex
     model_name: openai/gpt-5.3-codex
     extra_allowed_hosts: &hosts [api.openai.com]
+    # extra_allowed_hosts: &hosts [chatgpt.com, auth.openai.com]
 
   - name: codex
     model_name: openai/gpt-5.2-codex

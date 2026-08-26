@@ -113,20 +113,66 @@ an error rather than a quietly smaller run.
 | `vanilla.yaml` | nothing | none |
 | `vaadin-skills.yaml` | three Vaadin skills, and the `vaadin` documentation MCP server | `mcp.vaadin.com` |
 | `vaadin-skills-tools.yaml` | the above, plus agent-tools: two skills, a bundled CLI, a `PostToolUse` theme check | `mcp.vaadin.com` |
+| `vaadin-mcp.yaml` | no plugins; the current documentation MCP server alone | `mcp.vaadin.com` |
+| `vaadin-mcp-java.yaml` | no plugins; the newer `/docs-java` documentation MCP server alone | `mcp.vaadin.com` |
 
 Both plugins are in the base image under `/root/.claude/skills/`, where Claude Code
 loads them as `<name>@skills-dir` with their skills, hooks and MCP servers; each
-file switches them on or off by name. `base/Dockerfile` pins their commits. Whether
-a switch took is in the agent's log — empty for vanilla, `vaadin` otherwise:
+file switches them on or off by name. `base/Dockerfile` pins their commits. The two
+`vaadin-mcp*` files switch both plugins off and instead register the MCP server
+themselves, through Harbor's own `mcp_servers:`, which writes it user-scoped into
+the trial's `~/.claude.json` — so the agent gets the documentation tools and none
+of the skills. Whether a switch took is in the agent's log — empty for vanilla,
+`vaadin` otherwise:
 
 ```bash
 grep -o '"mcp_servers":\[[^]]*\]' jobs/<job>/<trial>/agent/claude-code.txt
 ```
 
-The full sweep is 135 trials, and an Opus trial on the easiest task cost about a
+The full sweep is 225 trials, and an Opus trial on the easiest task cost about a
 dollar, so start with one configuration on one task. Note that the documentation
-MCP server is live: those two configurations are neither closed-book nor stable
-over time.
+MCP server is live: the four configurations that reach it are neither closed-book
+nor stable over time.
+
+### Comparing the two documentation MCP servers
+
+`vaadin-mcp.yaml` and `vaadin-mcp-java.yaml` differ in one URL and nothing else, so
+a difference between their jobs is a difference between the servers rather than
+between what surrounds them:
+
+```bash
+./vaadin-bench.sh -c 'vaadin-mcp*' -m sonnet -k 5
+```
+
+Against the skills configuration — the question of whether the newer server on its
+own reaches what three skills and the current server reach together — add it:
+
+```bash
+./vaadin-bench.sh -c vaadin-mcp-java,vaadin-mcp,vaadin-skills,vanilla -m sonnet -k 5
+```
+
+The newer server's endpoint is `https://mcp.vaadin.com/docs-java/docs`, not
+`https://mcp.vaadin.com/docs-java`. The latter is that deployment's setup page, and
+its snippets still name the hosted `/docs`; the MCP endpoint sits under the
+deployment's own context path. It answers `initialize` — `serverInfo` 0.1.0 against
+`/docs`'s 0.8.0 — is stateless where `/docs` hands out a session id, and carries two
+tools `/docs` does not, `get_vaadin_dependency` and `get_image_info`. Check it
+before spending a sweep on it:
+
+```bash
+curl -s https://mcp.vaadin.com/docs-java/docs \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+       "protocolVersion":"2025-06-18","capabilities":{},
+       "clientInfo":{"name":"curl","version":"1"}}}'
+```
+
+What no configuration file can express is the skills *with* the newer server: the
+`vaadin-skills` plugin declares its own `vaadin` server in its `.mcp.json`, and
+nothing a run config sets overrides a plugin's own declaration. That arm needs a
+second copy of the plugin in `base/Dockerfile` with the URL rewritten, enabled by
+name like the others, and a rebuild with `--force-build`.
 
 If you drive Harbor directly instead, three of its flags misbehave alongside `-c`:
 `-m` is ignored unless `-a` is given, `-a` discards the file's configurations, and

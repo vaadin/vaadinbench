@@ -43,14 +43,10 @@ image="ghcr.io/$repository"
 retry_delay=${VB_RETRY_DELAY:-2}
 
 # Nowhere to put the response body is one more way of not being able to tell, so
-# it stops as well — and an unset work would make the body path absolute, which is
-# why this is checked rather than assumed.
+# it stops as well. Checked rather than assumed: this script does not set -e, and
+# an unset work would make the body path below absolute.
 work=$(mktemp -d "${TMPDIR:-/tmp}/vb-registry.XXXXXX") || \
     { echo "::error::no temporary directory to read a manifest into"; exit 1; }
-if [ -z "$work" ] || [ ! -d "$work" ]; then
-    echo "::error::no temporary directory to read a manifest into"
-    exit 1
-fi
 trap 'rm -rf "$work"' EXIT
 
 # One request under the policy above. Prints the verdict — `ok`, `unknown <why>`

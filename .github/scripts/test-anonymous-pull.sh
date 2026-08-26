@@ -21,12 +21,10 @@
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-# Checked before anything is written under it, and before the trap that would
-# delete it. This script does not set -e on purpose, so an unset WORK would make
-# every path below absolute: $WORK/bin/curl is /bin/curl, which as root is the
-# real one, truncated.
+# Checked, because this script does not set -e on purpose: an unset WORK would make
+# every path below absolute, and $WORK/bin/curl is then /bin/curl — as root, the
+# real one, truncated by the stub written over it.
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/vb-anonymous-pull-test.XXXXXX") || exit 1
-[ -n "$WORK" ] && [ -d "$WORK" ] || exit 1
 trap 'rm -rf "$WORK"' EXIT
 
 # Answers from the queue in $VB_STUB_QUEUE, writing the body the real one would

@@ -10,7 +10,8 @@
 # Spring Boot closure from Maven Central. The apt layer is shared; this is not.
 #
 # The base-image workflow builds this for linux/amd64 and linux/arm64 on push to
-# main, pushes both as one manifest list to ghcr.io/vesanieminen/vaadinbench-base,
+# main, pushes both as one manifest list to ghcr.io/vesanieminen/vaadinbench-base
+# under the tag in base/stack-version.txt, which is the one copy of that version,
 # and commits that list's digest into every task Dockerfile — so a normal run
 # pulls it and builds nothing. To build it by hand, from the repository root and
 # not from this directory:

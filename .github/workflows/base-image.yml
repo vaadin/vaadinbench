@@ -38,7 +38,6 @@ on:
     paths:
       - base/**
       - .dockerignore
-      - .github/scripts/base-image-reference.sh
       - .github/workflows/base-image.yml
       - tasks/*/task.toml
       - tasks/*/environment/app/**
@@ -53,12 +52,6 @@ on:
 concurrency:
   group: base-image
   cancel-in-progress: false
-
-env:
-  # The stack this base carries, for the tag a human reads. What the task images
-  # actually build on is the digest pinned below — never bumped in place, because
-  # a new stack is a new task version.
-  VERSION: 25.2.6-jdk25
 
 jobs:
   build:
@@ -155,6 +148,11 @@ jobs:
 
       - name: Assemble the manifest list
         run: |
+          # base/stack-version.txt is the one copy of the stack this base carries:
+          # the tag a human reads, and the tag the reference validator accepts
+          # before the first publication. What the task images build on is the
+          # digest pinned at the end of this job.
+          version=$(tr -d '[:space:]' <base/stack-version.txt)
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           image="ghcr.io/$owner/vaadinbench-base"
           refs=""
@@ -162,8 +160,8 @@ jobs:
             refs="$refs $image@$(cat "$digest")"
           done
           docker buildx imagetools create \
-            -t "$image:$VERSION" -t "$image:${{ github.sha }}" $refs
-          list=$(docker buildx imagetools inspect "$image:$VERSION" \
+            -t "$image:$version" -t "$image:${{ github.sha }}" $refs
+          list=$(docker buildx imagetools inspect "$image:$version" \
                  --format '{{.Manifest.Digest}}')
           echo "OWNER=$owner" >>"$GITHUB_ENV"
           echo "IMAGE=$image" >>"$GITHUB_ENV"
@@ -210,15 +208,41 @@ jobs:
       # that changes one line per file, and no behaviour.
       - name: Pin the digest into every task Dockerfile
         run: |
+          # Applied to whatever main is at this moment, not to the commit that
+          # triggered the run. Concurrency serializes this workflow but not the
+          # rest of the repository: an unrelated merge during the twenty minutes a
+          # build takes would make a push of the triggering checkout a
+          # non-fast-forward, and the tag would already have moved — leaving a
+          # published base that nothing points at, with no later run to repair it
+          # if that merge touched none of the paths above.
+          #
+          # Rewriting one line per file onto the current head cannot conflict, so
+          # there is nothing to resolve and no rebase to attempt. If the merge that
+          # arrived did change an input the warm-up reads, then this digest is
+          # already stale for it — and that commit's own base-image run, queued
+          # behind this one, publishes and pins over it. Either way the pin below
+          # is correct or transient, never wrong and left.
           ref="$IMAGE@$LIST_DIGEST"
-          sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$ref|" \
-            tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
-          if git diff --quiet; then
-            echo "already pinned to $ref" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -qam "Pin the task images to the base built for ${{ github.sha }} [skip ci]"
-          git push origin HEAD:main
-          echo "Published and pinned $ref" | tee -a "$GITHUB_STEP_SUMMARY"
+          for attempt in 1 2 3; do
+            git fetch --quiet origin main
+            git checkout --quiet -B pin origin/main
+            sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$ref|" \
+              tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
+            if git diff --quiet; then
+              echo "already pinned to $ref" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            git commit -qam "Pin the task images to the base built for ${{ github.sha }} [skip ci]"
+            if git push --quiet origin HEAD:main; then
+              echo "Published and pinned $ref" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "main moved while this was publishing; pinning onto its new head"
+          done
+          echo "::error::published $ref but could not pin it into the task" \
+               "Dockerfiles: main moved under three attempts. Rerun this workflow," \
+               "or apply the line by hand — until it is pinned, every existing" \
+               "checkout keeps building on the base before it."
+          exit 1

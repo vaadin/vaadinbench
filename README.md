@@ -259,8 +259,9 @@ sweep. Nothing about a control has to be checked by hand.
 
 Every task must declare a separate verifier environment and provide
 `tests/Dockerfile`. For a Git-backed starting app, record its baseline tree in the
-agent image, collect a binary patch, publish the tree id alongside it, and have
-the verifier prove its own `/app` reproduces that id before applying anything;
+trusted base image, require the agent-image build to reproduce its tree id, and
+have the verifier prove its own `/app` reproduces the same id before applying the
+agent's patch;
 for an empty starting directory, transfer a filtered source snapshot with an
 explicit completion marker and content manifest. Never transfer an agent
 dependency cache or build directory. The `validate` workflow enforces all of

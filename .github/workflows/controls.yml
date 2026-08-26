@@ -187,11 +187,21 @@ jobs:
                 if ! docker exec "$cid" tar czf /tmp/vaadinbench-app.tgz \
                      "${exclude_args[@]}" -C /app . \
                      || ! docker cp "$cid:/tmp/vaadinbench-app.tgz" \
-                          /tmp/vb-agent-app.tgz \
-                     || ! tar --no-same-owner -xzf /tmp/vb-agent-app.tgz \
-                          -C /tmp/vb-app \
-                     || ! find /tmp/vb-app -type f -exec chmod g-w,o-w {} +; then
+                          /tmp/vb-agent-app.tgz; then
                   echo "::error::$name: $1 app artifact collection failed"
+                  cleanup_check
+                  status=1
+                  return
+                fi
+                if ! python3 - /tmp/vb-agent-app.tgz /tmp/vb-app <<'PY'
+          import sys
+          import tarfile
+
+          with tarfile.open(sys.argv[1], "r:*") as archive:
+              archive.extractall(path=sys.argv[2], filter="data")
+          PY
+                then
+                  echo "::error::$name: $1 app artifact extraction failed"
                   cleanup_check
                   status=1
                   return

@@ -13,6 +13,10 @@
 # Each case is a queue of HTTP statuses, one per request the helper makes: the
 # token endpoint first, then the manifest. 000 stands for a request that got no
 # answer at all, the way curl reports being offline.
+#
+# Only a 200 passes. Every other outcome stops the publication this guards, and
+# what the cases pin down is that the two reasons stay distinguishable: a refusal
+# points at the package's visibility, an outage at rerunning the workflow.
 
 set -uo pipefail
 
@@ -107,14 +111,20 @@ case_is manifest-missing 1 'cannot be pulled' '200 404'
 case_is token-empty 1 'returned no token' '200' 1
 
 # Nothing answered, or the registry asked to be asked later, or it broke. None of
-# these says the reference is unpullable, and none may fail a pull request —
-# including when the retries are exhausted, which is the case that used to report
-# a private package during an outage.
-case_is offline           0 'did not answer' '000'
-case_is token-500         0 'did not answer' '500 500 500'
-case_is token-429         0 'did not answer' '429 429 429'
-case_is manifest-503      0 'did not answer' '200 503 503 503'
-case_is manifest-429      0 'did not answer' '200 429 429 429'
+# these says the reference is unpullable — that diagnosis has to stay distinct from
+# a private package, or it sends the reader somewhere useless — but none of them
+# proves the image can be pulled either, so all of them stop the publication that
+# is this script's only caller. Being unable to tell is a reason to run it again.
+case_is offline      1 'is unknown' '000'
+case_is token-500    1 'is unknown' '500 500 500'
+case_is token-429    1 'is unknown' '429 429 429'
+case_is manifest-503 1 'is unknown' '200 503 503 503'
+case_is manifest-429 1 'is unknown' '200 429 429 429'
+
+# And the two ways of stopping do not read alike: only one of them sends anyone to
+# the package's visibility setting.
+case_is refusal-points-at-visibility 1 'not public' '403'
+case_is outage-points-at-a-rerun     1 'rerun this' '500 500 500'
 
 # And a transient failure that clears is simply a pull that worked.
 case_is retry-then-ok 0 'anonymous pull ok' '500 200 200'

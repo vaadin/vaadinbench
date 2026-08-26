@@ -174,7 +174,10 @@ jobs:
       # a clone and a Harbor run are the whole setup, is checked here the way a new
       # user meets it: an anonymous pull token, and the manifest fetched with it.
       # No Docker credentials are involved, so a logged-in daemon cannot mask a
-      # private package.
+      # private package. Nothing is pinned unless this passes: only a confirmed
+      # pull proves the promise, and a registry that cannot be reached leaves it
+      # unproven — a reason to rerun this workflow, which verifies and pins the
+      # same digest.
       - name: The published image is pullable by anyone
         run: bash .github/scripts/anonymous-pull.sh \
           "$OWNER/vaadinbench-base" "$LIST_DIGEST"

@@ -17,16 +17,18 @@
 # Both requests are classified the same way, because either can be the one that
 # fails and their failures mean different things:
 #
-#   200        pullable
+#   200        pullable, and the only answer this passes on
 #   000        nothing answered — offline, or DNS, or a dropped connection
 #   429 / 5xx  the registry asking to be asked later, or its own fault
 #   anything   a definite refusal: the package is private, or the reference
-#   else       names nothing — the one thing worth failing on
+#   else       names nothing
 #
 # The middle two are retried, and if they are still the answer the verdict is
-# "unknown", not "refused". An outage must not be reported as a private package,
-# and it must not fail a pull request: the reference was not shown to be broken,
-# which is all this can honestly say.
+# "unknown" rather than "refused" — an outage is not a private package, and saying
+# so would send whoever reads it to the wrong place. But the two diagnoses share
+# one outcome: they stop the publication. Only a 200 proves what the Quickstart
+# promises, that a stranger can pull this image, and this runs at the one moment
+# when being unable to tell is a reason to run it again.
 #
 # $1 repository, as owner/name
 # $2 reference, a tag or a sha256:… digest
@@ -40,10 +42,15 @@ image="ghcr.io/$repository"
 # polite to.
 retry_delay=${VB_RETRY_DELAY:-2}
 
-# Nowhere to put the response body is nothing this can say about the reference —
-# and an unset work would make the body path absolute. Checked, not assumed.
-work=$(mktemp -d "${TMPDIR:-/tmp}/vb-registry.XXXXXX") || exit 0
-[ -n "$work" ] && [ -d "$work" ] || exit 0
+# Nowhere to put the response body is one more way of not being able to tell, so
+# it stops as well — and an unset work would make the body path absolute, which is
+# why this is checked rather than assumed.
+work=$(mktemp -d "${TMPDIR:-/tmp}/vb-registry.XXXXXX") || \
+    { echo "::error::no temporary directory to read a manifest into"; exit 1; }
+if [ -z "$work" ] || [ ! -d "$work" ]; then
+    echo "::error::no temporary directory to read a manifest into"
+    exit 1
+fi
 trap 'rm -rf "$work"' EXIT
 
 # One request under the policy above. Prints the verdict — `ok`, `unknown <why>`
@@ -73,10 +80,13 @@ probe() {
     fi
 }
 
-unreachable() {
-    echo "::notice::ghcr.io did not answer for $image@$reference ($1), so the" \
-         "reference was not resolved — unknown rather than unpullable"
-    exit 0
+unverified() {
+    echo "::error::ghcr.io did not answer for $image@$reference ($1), so whether" \
+         "it can be pulled anonymously is unknown — which is not the same as its" \
+         "being private, and not something to publish on. The image and its tags" \
+         "are already pushed: rerun this workflow when the registry is answering" \
+         "again, and it will verify and pin the same digest."
+    exit 1
 }
 
 refused() {
@@ -91,7 +101,7 @@ refused() {
 settle() {
     case "$1" in
         ok) ;;
-        unknown*) unreachable "${1#unknown }" ;;
+        unknown*) unverified "${1#unknown }" ;;
         *) refused "${1#refused }" ;;
     esac
 }

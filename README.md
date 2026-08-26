@@ -394,9 +394,11 @@ and it decides everything from the files: no registry, nothing to be flaky.
 Whether that digest is really pullable is asked once instead, by the publish job
 that wrote it, with an anonymous pull token and no Docker credentials — a GHCR
 package is private when first pushed, and making it public is a one-time manual
-step GitHub offers no API for. That probe reads an unreachable or rate-limiting
-registry as unknown rather than as a refusal, which is the distinction
-`.github/scripts/test-anonymous-pull.sh` pins down against a stub `curl`.
+step GitHub offers no API for. Only a confirmed pull lets the publication finish:
+an unreachable or rate-limiting registry stops it too, in its own words rather than
+by blaming the package's visibility, because being unable to tell is a reason to
+run the workflow again. `.github/scripts/test-anonymous-pull.sh` pins that
+distinction down against a stub `curl`.
 
 The stack is never upgraded in place: a new stack means a new tag and a new task
 version. A task build resolves no dependencies at all — it runs `mvn -B -o test`

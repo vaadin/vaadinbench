@@ -10,8 +10,8 @@
 # skills around it do, which vaadin-skills cannot, since there the two arrive
 # together.
 #
-# Claude gets the server through Harbor rather than through the plugin, with both
-# plugins switched off — Harbor writes it user-scoped into the trial's
+# Claude gets the server through Harbor rather than through the plugin, with all
+# three plugins switched off — Harbor writes it user-scoped into the trial's
 # ~/.claude.json, so it loads without a trust dialog. Codex gets the same URL in
 # $CODEX_HOME/config.toml. Neither gets skills_dir.
 #
@@ -29,6 +29,7 @@ agents:
       config:
         enabledPlugins:
           vaadin-skills@skills-dir: false
+          vaadin-skills-java@skills-dir: false
           vaadin-agent-tools@skills-dir: false
 
   - name: claude-code

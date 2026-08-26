@@ -35,6 +35,7 @@ agents:
       config:
         enabledPlugins:
           vaadin-skills@skills-dir: false
+          vaadin-skills-java@skills-dir: false
           vaadin-agent-tools@skills-dir: false
 
   - name: claude-code

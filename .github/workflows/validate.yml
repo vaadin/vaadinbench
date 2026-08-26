@@ -150,6 +150,13 @@ jobs:
           fi
           echo "stack version $version, one copy"
 
+      # While the task Dockerfiles still name the bootstrap tag there is no digest
+      # to resolve, so the registry probe first runs on a publication after a
+      # merge — and what matters about it is how it reads a registry that
+      # misbehaves. A stub curl arranges what GHCR will not.
+      - name: Test the registry probe
+        run: bash .github/scripts/test-anonymous-pull.sh
+
       - name: Test the verifier entry points and library
         run: bash base/test-verifier.sh
 

@@ -32,9 +32,12 @@ jobs:
           fetch-depth: 0 # need history to diff against the base ref
 
       # A push touching one task should not rebuild the world. Anything outside
-      # tasks/ that can change behaviour — the base image, its build context's
-      # .dockerignore, this workflow — means every task is in scope, as do the
-      # scheduled and manual runs.
+      # tasks/ that can change behaviour means every task is in scope, as do the
+      # scheduled and manual runs: the base image, its build context's
+      # .dockerignore, this workflow, and the pinned Harbor. Harbor is on the list
+      # because this workflow invokes it directly — moving that pin can change how
+      # the submission is transferred or how a verifier is run, and selecting zero
+      # tasks would let it through unmeasured.
       - name: Select tasks
         id: select
         run: |
@@ -47,8 +50,8 @@ jobs:
                 sel="$all"; why="no usable base ref"
               else
                 changed=$(git diff --name-only "$base" HEAD)
-                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|\.github/workflows/controls\.yml)'; then
-                  sel="$all"; why="base image or this workflow changed"
+                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|\.github/workflows/controls\.yml)'; then
+                  sel="$all"; why="base image, Harbor pin or this workflow changed"
                 else
                   sel=$(echo "$changed" | grep -oE '^tasks/[^/]+' | sort -u | tr '\n' ' ')
                   why="changed tasks"
@@ -58,16 +61,21 @@ jobs:
           echo "tasks=$sel" >>"$GITHUB_OUTPUT"
           echo "Selected ($why): ${sel:-none}"
 
-      # Built once and reused by every task below. When the base is published to
-      # a registry this step becomes a pull, and the loop can become a matrix.
+      # Built here rather than pulled from the registry, even though the published
+      # image is what a normal run uses: the base warms a Maven repository for
+      # every task in this repository, so a change under tasks/ can need a base
+      # the registry does not have yet. Building is also the only way a change to
+      # base/ gets tested before it is published.
       - name: Build the base image
         if: steps.select.outputs.tasks != ''
-        # Tagged twice: the second is the tag every task Dockerfile defaults to,
-        # which is what the Harbor runs below build against — Harbor builds a
-        # task's images itself and passes no build args.
+        # Tagged twice: the second is the reference every task Dockerfile defaults
+        # to, so the Harbor runs below build against this image rather than
+        # pulling the published one — Harbor builds a task's images itself and
+        # passes no build args. A local tag wins over the registry.
         run: |
           docker build -t vaadinbench-base:ci -f base/Dockerfile .
-          docker tag vaadinbench-base:ci vaadinbench-base:25.2.6-jdk25
+          docker tag vaadinbench-base:ci \
+            ghcr.io/vesanieminen/vaadinbench-base:25.2.6-jdk25
 
       - uses: astral-sh/setup-uv@v5
         if: steps.select.outputs.tasks != ''

@@ -12,15 +12,11 @@
 !base/
 !tasks/
 
-# Local build output and IDE metadata, which are untracked but present on a
-# developer's machine. The warm-up must see exactly what is committed.
+# Local build output, which is untracked but present on a developer's machine and
+# large. The warm-up must see what is committed, not what a laptop happens to
+# have built.
 **/target/
 **/node_modules/
 **/frontend/generated/
 **/vite.generated.ts
-**/.classpath
-**/.project
-**/.settings/
-**/.idea/
-**/*.iml
 **/.DS_Store

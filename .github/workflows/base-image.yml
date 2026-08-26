@@ -176,29 +176,8 @@ jobs:
       # No Docker credentials are involved, so a logged-in daemon cannot mask a
       # private package.
       - name: The published image is pullable by anyone
-        run: |
-          # Both halves are guarded, because either can be the one that fails: a
-          # private package can refuse the token as readily as the manifest, and a
-          # bare assignment would end the step — with fail-fast semantics — before
-          # the instructions below were ever printed.
-          not_public() {
-            echo "::error::$IMAGE is not readable anonymously, so a clone of this" \
-                 "repository cannot pull it. Make the package public once, at" \
-                 "https://github.com/users/$OWNER/packages/container/vaadinbench-base/settings" \
-                 "— GitHub offers no API for a container package's visibility, so" \
-                 "this is a one-time manual step."
-            exit 1
-          }
-          token=$(curl -fsSL \
-            "https://ghcr.io/token?service=ghcr.io&scope=repository:$OWNER/vaadinbench-base:pull" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])') || not_public
-          [ -n "$token" ] || not_public
-          curl -fsS -o /dev/null \
-            -H "Authorization: Bearer $token" \
-            -H "Accept: application/vnd.oci.image.index.v1+json" \
-            -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
-            "https://ghcr.io/v2/$OWNER/vaadinbench-base/manifests/$LIST_DIGEST" || not_public
-          echo "anonymous pull ok: $IMAGE@$LIST_DIGEST"
+        run: bash .github/scripts/anonymous-pull.sh \
+          "$OWNER/vaadinbench-base" "$LIST_DIGEST"
 
       # The digest, into the files that decide what a task builds on. Committing it
       # is what invalidates Harbor's task-image cache, so an existing checkout picks

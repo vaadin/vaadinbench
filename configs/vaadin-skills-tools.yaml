@@ -21,6 +21,7 @@ agents:
           vaadin-skills@skills-dir: true
           vaadin-skills-java@skills-dir: false
           vaadin-agent-tools@skills-dir: true
+          vaadin-devloop@skills-dir: false
 
   - name: claude-code
     model_name: anthropic/claude-sonnet-5

@@ -11,7 +11,7 @@
 # together.
 #
 # Claude gets the server through Harbor rather than through the plugin, with all
-# three plugins switched off — Harbor writes it user-scoped into the trial's
+# four plugins switched off — Harbor writes it user-scoped into the trial's
 # ~/.claude.json, so it loads without a trust dialog. Codex gets the same URL in
 # $CODEX_HOME/config.toml. Neither gets skills_dir.
 #
@@ -31,6 +31,7 @@ agents:
           vaadin-skills@skills-dir: false
           vaadin-skills-java@skills-dir: false
           vaadin-agent-tools@skills-dir: false
+          vaadin-devloop@skills-dir: false
 
   - name: claude-code
     model_name: anthropic/claude-sonnet-5

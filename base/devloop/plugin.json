@@ -1,0 +1,8 @@
+{
+  "name": "vaadin-devloop",
+  "version": "0.1.0",
+  "description": "The Vaadin dev-loop daemon: background compilation, hot reload and an authoritative answer to whether the last edit is live, through the vaadin-dev CLI.",
+  "author": {
+    "name": "tltv/devloop, vendored for VaadinBench"
+  }
+}

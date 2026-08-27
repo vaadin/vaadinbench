@@ -93,6 +93,10 @@ prune_case() {
 # step name may hold a space or a leading dot — so a rule written in terms of
 # names would either skip these or, worse, trust a name the agent chose.
 #
+# The job names in the last two are Harbor's to allow as much as the step names
+# are: JobConfig.job_name is an unvalidated string and --job-name hands one
+# straight through, so a job directory can nest as deep as the name says.
+#
 # label|named directory|trial directory under it|where agent/ sits in the trial
 layouts=(
     "a trial named directly|single/trial||"
@@ -111,6 +115,8 @@ layouts=(
     "a step name with a slash|step-slash||steps/build/linux"
     "a step name with several slashes|step-slashes||steps/build/linux/arm64"
     "a nested step name under a directory of jobs|slash-runs|job1/trial1|steps/build/linux"
+    "a nested job name|job-slash|nightly/run-vanilla-1/trial1|"
+    "a job name nested several deep|job-slashes|a/b/c/d-vanilla-1/trial1|steps/build"
 )
 for layout in "${layouts[@]}"; do
     IFS='|' read -r label target root step <<<"$layout"
@@ -145,6 +151,7 @@ agent_trees=(
     "a tree in a step's submission|step-sub/trial||steps/build/artifacts/src"
     "a second agent directory in a step's mount|step-mount/trial||steps/build/agent"
     "a tree in a step's verifier output|step-verifier/trial||steps/build/verifier/tmp"
+    "a forged trial marker deep in the submission|forged-deep/trial||artifacts/src/main/trial9"
 )
 for tree in "${agent_trees[@]}"; do
     IFS='|' read -r label target root planted <<<"$tree"

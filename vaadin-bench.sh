@@ -160,6 +160,7 @@ Run
   -n, --concurrent N      concurrent trials                    (Harbor's: 4)
       --timeout-multiplier F  scale every task timeout
       --job-name NAME     prefix for the job names             (default: none)
+      --keep-job-binaries keep the unrunnable CLI builds each trial copies
   -o, --jobs-dir DIR      where job results land               (default: jobs)
   -q, --quiet             suppress the per-trial progress displays
   -y, --yes               auto-confirm Harbor's prompts
@@ -224,6 +225,7 @@ check_recordings() {
   return 0
 }
 job_name_prefix=""
+keep_binaries=""
 jobs_dir=""
 concurrent=""
 timeout_multiplier=""
@@ -247,6 +249,7 @@ while [[ $# -gt 0 ]]; do
     -n|--concurrent) concurrent=$2; shift 2 ;;
     --timeout-multiplier) timeout_multiplier=$2; shift 2 ;;
     --job-name) job_name_prefix=$2; shift 2 ;;
+    --keep-job-binaries) keep_binaries=yes; shift ;;
     -o|--jobs-dir) jobs_dir=$2; shift 2 ;;
     -q|--quiet) quiet=yes; shift ;;
     -y|--yes) yes=yes; shift ;;
@@ -329,12 +332,19 @@ for config in $configs; do
   # The configuration name stays in the job name even under --job-name: two
   # configurations sharing a name would have Harbor resume one job directory for
   # both instead of running the second.
-  cmd=(uv run harbor run -c "$config_file" "${common[@]}" --job-name "${job_name_prefix:+$job_name_prefix-}$config-$stamp")
+  job_name="${job_name_prefix:+$job_name_prefix-}$config-$stamp"
+  cmd=(uv run harbor run -c "$config_file" "${common[@]}" --job-name "$job_name")
   if [[ -n $dry_run ]]; then
     printf '%q ' "${cmd[@]}"
     echo
   else
     "${cmd[@]}"
+    # Straight after the job that wrote it, so a long run does not carry every
+    # earlier job's dead weight on disk while it finishes. Only this job's
+    # directory is touched — an older one is pruned by naming it to the script.
+    if [[ -z $keep_binaries ]]; then
+      scripts/prune-job-binaries.sh "${jobs_dir:-jobs}/$job_name"
+    fi
   fi
 done
 

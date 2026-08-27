@@ -27,3 +27,7 @@ vite.generated.ts
 *.iml
 
 .DS_Store
+
+# Worktrees this session creates under .claude/ are checkouts of this same
+# repository, not content of it.
+.claude/worktrees/

@@ -160,6 +160,7 @@ Run
   -n, --concurrent N      concurrent trials                    (Harbor's: 4)
       --timeout-multiplier F  scale every task timeout
       --job-name NAME     prefix for the job names             (default: none)
+      --keep-job-binaries keep the prebuilt CLI directory each trial copies
   -o, --jobs-dir DIR      where job results land               (default: jobs)
   -q, --quiet             suppress the per-trial progress displays
   -y, --yes               auto-confirm Harbor's prompts
@@ -224,6 +225,7 @@ check_recordings() {
   return 0
 }
 job_name_prefix=""
+keep_binaries=""
 jobs_dir=""
 concurrent=""
 timeout_multiplier=""
@@ -247,6 +249,7 @@ while [[ $# -gt 0 ]]; do
     -n|--concurrent) concurrent=$2; shift 2 ;;
     --timeout-multiplier) timeout_multiplier=$2; shift 2 ;;
     --job-name) job_name_prefix=$2; shift 2 ;;
+    --keep-job-binaries) keep_binaries=yes; shift ;;
     -o|--jobs-dir) jobs_dir=$2; shift 2 ;;
     -q|--quiet) quiet=yes; shift ;;
     -y|--yes) yes=yes; shift ;;
@@ -283,6 +286,47 @@ fi
 check_recordings $tasks || exit 2
 
 common=(-p tasks)
+# Each trial's copy of the agent-tools CLI builds, pruned by Harbor's own plugin
+# as that trial ends rather than by this script once the whole job has. Harbor
+# emits the event it hooks from a `finally`, so a trial that crashed is pruned
+# too, and it lands before Harbor walks the trial directory to redact secrets —
+# 28 MB it then does not have to read. What is removed and why an `exclude` in a
+# task's [[artifacts]] cannot do it: scripts/prune-job-binaries.sh.
+#
+# On the command line rather than in configs/: Harbor deprecated the `plugins:`
+# job-config key and ignores it. PYTHONPATH is what makes the module importable
+# — Harbor imports a plugin by module path, and for a console script sys.path
+# starts at the virtualenv's bin directory, not at this repository.
+#
+# Stood down when a passthrough plugin brings kwargs with it. Harbor applies
+# --pk to every plugin named in the invocation and refuses the run outright
+# unless there is exactly one, so adding a second here would turn a working
+# `-- --plugin your:Plugin --pk key=value` into an error. Repeated --plugin on
+# its own is fine and stays fine; only the kwargs form collides. Say so rather
+# than prune silently, since the job then keeps the copies.
+plugin_kwargs_passed=""
+plugin_env=()
+for arg in ${passthrough[@]+"${passthrough[@]}"}; do
+  case $arg in
+    --pk|--pk=*|--plugin-kwarg|--plugin-kwarg=*) plugin_kwargs_passed=yes ;;
+  esac
+done
+
+if [[ -n $keep_binaries ]]; then
+  :
+elif [[ -n $plugin_kwargs_passed ]]; then
+  {
+    echo "vaadin-bench: --pk passed through, so the prune plugin is left out"
+    echo "  Harbor allows plugin kwargs only with a single --plugin."
+    echo "  Prune afterwards with: scripts/prune-job-binaries.sh ${jobs_dir:-jobs}"
+  } >&2
+else
+  # `env` rather than an export, so the variable is part of the command itself
+  # and --dry-run prints something that can be pasted and run. An export would
+  # live in this process only, and the printed line would import nothing.
+  plugin_env=(env "PYTHONPATH=$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}")
+  common+=(--plugin vaadinbench_plugins:PrunePlatformBinaries)
+fi
 for task in $tasks; do
   common+=(-i "$task")
 done
@@ -329,7 +373,9 @@ for config in $configs; do
   # The configuration name stays in the job name even under --job-name: two
   # configurations sharing a name would have Harbor resume one job directory for
   # both instead of running the second.
-  cmd=(uv run harbor run -c "$config_file" "${common[@]}" --job-name "${job_name_prefix:+$job_name_prefix-}$config-$stamp")
+  cmd=(${plugin_env[@]+"${plugin_env[@]}"} \
+       uv run harbor run -c "$config_file" "${common[@]}" \
+       --job-name "${job_name_prefix:+$job_name_prefix-}$config-$stamp")
   if [[ -n $dry_run ]]; then
     printf '%q ' "${cmd[@]}"
     echo

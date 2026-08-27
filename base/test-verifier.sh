@@ -51,8 +51,10 @@ printf 'class AppTest {}\n' >"$submitted/src/test/java/com/example/AppTest.java"
 #
 # $1 label  $2 expected exit  $3 expected reward, empty for none written
 # $4 reason to find in the output  $5 tasks  $6 function that fabricates the case
+# $7 non-empty to require the trial's diff to have been recorded before the stop
 verifier_case() {
     local label=$1 want_rc=$2 want_reward=$3 reason=$4 tasks=$5 setup=$6
+    local want_patch=${7:-}
     local task dir rc
     for task in $tasks; do
         dir="$WORK/$label-$task"
@@ -72,6 +74,19 @@ verifier_case() {
             assert "$label/$task writes no reward" test ! -e "$dir/logs/reward.txt"
         fi
         assert "$label/$task reports $reason" grep -q "$reason" "$dir/out.txt"
+        if [ -n "$want_patch" ]; then
+            # Recorded before the entry point stopped, and before anything from
+            # the verifier image replaced part of the tree. Nothing else in this
+            # repository notices when a task stops recording the diff — that is
+            # how a whole run was published with an empty Changes tab — so every
+            # entry point is held to it here, whatever it does afterwards.
+            assert "$label/$task records the agent's diff" \
+                test -s "$dir/logs/agent.patch"
+            assert "$label/$task records the diff stat" \
+                test -f "$dir/logs/agent-diff-stat.txt"
+            assert "$label/$task records the baseline it diffed against" \
+                test -s "$dir/logs/agent-diff-baseline.txt"
+        fi
     done
 }
 
@@ -111,8 +126,15 @@ done
 echo "testing entry points: $all_tasks"
 
 verifier_case missing 0 0  submission_missing           "$all_tasks" case_nothing
-verifier_case symlink 0 0  source_tree_contains_symlink "$all_tasks" case_symlink
-verifier_case broken  1 "" protected_pom_missing        "$all_tasks" case_no_protected_pom
+# A tree that arrived and is then refused for what is in it: the diff is recorded
+# either way, so a refused trial still says what it received.
+verifier_case symlink 0 0  source_tree_contains_symlink "$all_tasks" case_symlink patch
+# The one case that reaches the diff and then stops: /app holds a submission, so
+# the entry point records it, and the missing protected pom halts the run right
+# afterwards. That order is the point — a diff taken after vb_restore_protected
+# would describe this image's files as the agent's work.
+verifier_case broken  1 "" protected_pom_missing        "$all_tasks" \
+    case_no_protected_pom patch
 
 # The restore and grade halves of the shared library never run above: they need a
 # Maven build. Drive them directly against a fabricated task instead, with a stub

@@ -75,7 +75,10 @@ PLATFORM_PATH=agent/sessions/skills/vaadin-agent-tools/bin/platform
 # after `steps`. Testing for that rather than for the basename alone keeps a
 # multi-step step legitimately named "artifacts" from being skipped.
 #
-# $1 the components between the named directory and PLATFORM_PATH
+# Applied to the resolved path rather than to what the glob filled in, so a
+# symlink cannot walk a prefix into the submission and out of this rule.
+#
+# $1 the resolved path below the named directory, as space-separated components
 under_collected_artifacts() {
   local previous="" component
   for component in $1; do
@@ -87,7 +90,10 @@ under_collected_artifacts() {
   return 1
 }
 
-shopt -s nullglob
+# dotglob because Harbor accepts a step named .hidden, and a plain * skips a
+# dot-prefixed component. nullglob because a pattern that matches nothing should
+# yield nothing rather than itself.
+shopt -s nullglob dotglob
 
 freed=0
 pruned=0
@@ -96,22 +102,36 @@ for target in "${targets[@]}"; do
     echo "prune-job-binaries: $target is not a directory, skipped" >&2
     continue
   fi
+  target_real=$(cd "$target" 2>/dev/null && pwd -P) || continue
   for prefix in "" "*/" "*/*/" "*/*/*/" "*/*/*/*/"; do
     for platform in "$target"/${prefix}$PLATFORM_PATH; do
       [[ -d $platform ]] || continue
-      # What the glob filled in for the prefix, as space-separated components.
-      middle=${platform#"$target"/}
-      middle=${middle%"$PLATFORM_PATH"}
-      if under_collected_artifacts "${middle//\// }"; then
+
+      # Everything below decides against the resolved path, never the pattern.
+      # A glob happily expands through a symlinked directory, and `rm -rf` on
+      # what comes out follows it: a link anywhere in a prefix would delete a
+      # directory outside the tree that was named, or one inside it that this
+      # refuses to touch. Resolving first and requiring the result to still be
+      # under the named directory is what makes construction hold — without it,
+      # the path is only nominally the one that was built.
+      platform_real=$(cd "$platform" 2>/dev/null && pwd -P) || continue
+      if [[ $platform_real != "$target_real"/* ]]; then
+        echo "prune-job-binaries: $platform resolves outside $target, skipped" >&2
         continue
       fi
-      size=$(du -sk "$platform" | cut -f1)
+
+      relative=${platform_real#"$target_real"/}
+      if under_collected_artifacts "${relative//\// }"; then
+        continue
+      fi
+
+      size=$(du -sk "$platform_real" | cut -f1)
       freed=$((freed + size))
       pruned=$((pruned + 1))
       if [[ -n $dry_run ]]; then
-        printf '  would remove %s (%d MB)\n' "$platform" "$((size / 1024))"
+        printf '  would remove %s (%d MB)\n' "$platform_real" "$((size / 1024))"
       else
-        rm -rf "$platform"
+        rm -rf "$platform_real"
       fi
     done
   done

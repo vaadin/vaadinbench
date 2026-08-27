@@ -219,19 +219,25 @@ RUN cp -a /root/.claude/skills/vaadin-skills \
 # Three pieces, and each is here because a trial cannot fetch it:
 #
 #   devloop-daemon.jar  built from the pinned source; the daemon itself
-#   flow-devloop        the in-app connector, installed into /root/.m2 so an
-#                       application can declare it — vaadin-devloop-setup is what
-#                       adds that declaration, because the daemon launches the app
-#                       from the classpath Maven resolves and cannot inject itself
+#   flow-devloop.jar    the in-app connector, staged as a jar rather than as a
+#                       dependency for an application to declare — see mvn-devloop
+#                       below, and base/devloop/mvn-devloop for why the pom is left
+#                       alone
 #   HotswapAgent        downloaded here and checksum-verified, because the daemon
 #                       would otherwise fetch it on first start over a network the
 #                       agent phase does not open
 #
 # Only flow-devloop and devloop-daemon are built. The reactor's demo-app is not:
 # it is a Vaadin application with a frontend build, and this image deliberately
-# carries no Node. The root pom is in the list so the parent that flow-devloop's
-# own pom names is installed too — without it, an application declaring the
-# connector cannot resolve its parent and the build fails at the pom, not the jar.
+# carries no Node.
+#
+# mvn-devloop is the Maven the daemon resolves with, and the whole of how the
+# connector reaches the running app: it runs the real Maven and then appends the
+# staged jar to the classpath file Maven wrote. Nothing in /app is edited, which
+# is not a nicety — the app's source tree is the submission, and flow-new-project
+# compares its generated files byte for byte against tests/expected before the
+# verifier restores anything, so a connector added to pom.xml would fail that gate
+# on an otherwise correct project. base/devloop/mvn-devloop carries the detail.
 #
 # The version and checksum below are upstream's, and the build fails loudly if
 # either moves: Launch.java pins HA_VERSION and HA_SHA256, and the daemon rejects a
@@ -248,7 +254,7 @@ COPY base/devloop/ /tmp/devloop-bench/
 RUN git clone -q https://github.com/tltv/devloop /tmp/devloop \
     && git -C /tmp/devloop checkout -q "$DEVLOOP_SHA" \
     && mvn -B -ntp -f /tmp/devloop/pom.xml \
-        -pl .,flow-devloop,devloop-daemon -DskipTests install \
+        -pl .,flow-devloop,devloop-daemon -DskipTests package \
     && mkdir -p /opt/vaadin-devloop \
     && cp /tmp/devloop/devloop-daemon/target/devloop-daemon.jar \
         /opt/vaadin-devloop/devloop-daemon.jar \
@@ -256,11 +262,11 @@ RUN git clone -q https://github.com/tltv/devloop /tmp/devloop \
         "https://github.com/HotswapProjects/HotswapAgent/releases/download/RELEASE-$HOTSWAP_AGENT_VERSION/hotswap-agent-$HOTSWAP_AGENT_VERSION.jar" \
     && echo "$HOTSWAP_AGENT_SHA256  /opt/vaadin-devloop/hotswap-agent-$HOTSWAP_AGENT_VERSION.jar" \
         | sha256sum -c - \
+    && cp "/tmp/devloop/flow-devloop/target/flow-devloop-$DEVLOOP_VERSION.jar" \
+        /opt/vaadin-devloop/flow-devloop.jar \
     && install -m 0755 /tmp/devloop/demo-app/vaadin-dev /usr/local/bin/vaadin-dev \
-    && install -m 0755 /tmp/devloop-bench/vaadin-devloop-setup \
-        /usr/local/bin/vaadin-devloop-setup \
+    && install -m 0755 /tmp/devloop-bench/mvn-devloop /opt/vaadin-devloop/mvn-devloop \
     && test -x /usr/bin/mvn \
-    && test -d "/root/.m2/repository/com/dev/vaadin/example/flow-devloop/$DEVLOOP_VERSION" \
     && rm -rf /tmp/devloop/devloop-daemon/target /tmp/devloop/flow-devloop/target
 
 # The skill, as a plugin beside the other three, so configs/devloop.yaml enables it
@@ -289,7 +295,7 @@ RUN mkdir -p /root/.claude/skills/vaadin-devloop/.claude-plugin \
         >>/root/.claude/skills/vaadin-devloop/skills/vaadin-devloop/SKILL.md \
     && ln -sfn /root/.claude/skills/vaadin-devloop/skills /root/agent-skills-devloop \
     && rm -rf /tmp/devloop /tmp/devloop-bench \
-    && grep -q 'vaadin-devloop-setup' \
+    && grep -q 'Bindings for this environment' \
         /root/.claude/skills/vaadin-devloop/skills/vaadin-devloop/SKILL.md \
     && claude plugin list
 
@@ -304,12 +310,14 @@ RUN mkdir -p /root/.claude/skills/vaadin-devloop/.claude-plugin \
 #                           otherwise take the directory it sits in, and it sits in
 #                           /usr/local/bin, which is no Maven module
 #   VAADIN_DEV_DAEMON_OPTS  the staged HotswapAgent, so nothing is downloaded, and
-#                           the system Maven, so the daemon resolves with the one
-#                           that has the warmed repository rather than with the
-#                           application's wrapper, which would fetch a Maven
+#                           mvn-devloop as the Maven to resolve with: it wraps the
+#                           system Maven, which is the one with the warmed
+#                           repository — the application's own wrapper would fetch
+#                           a Maven — and it is what puts the connector on the
+#                           app's classpath without editing the app
 ENV VAADIN_DEV_HOME=/opt/vaadin-devloop \
     VAADIN_DEV_APP=/app \
-    VAADIN_DEV_DAEMON_OPTS="-Dvaadin.dev.hotswapAgentJar=/opt/vaadin-devloop/hotswap-agent-${HOTSWAP_AGENT_VERSION}.jar -Dvaadin.dev.maven=/usr/bin/mvn"
+    VAADIN_DEV_DAEMON_OPTS="-Dvaadin.dev.hotswapAgentJar=/opt/vaadin-devloop/hotswap-agent-${HOTSWAP_AGENT_VERSION}.jar -Dvaadin.dev.maven=/opt/vaadin-devloop/mvn-devloop"
 
 # No WORKDIR here on purpose. A task that replaces /app wholesale (a cloned app
 # does: `rm -rf /app && git clone ... /app`) would otherwise be deleting the

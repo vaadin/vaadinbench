@@ -297,7 +297,29 @@ common=(-p tasks)
 # job-config key and ignores it. PYTHONPATH is what makes the module importable
 # — Harbor imports a plugin by module path, and for a console script sys.path
 # starts at the virtualenv's bin directory, not at this repository.
-if [[ -z $keep_binaries ]]; then
+#
+# Stood down when a passthrough plugin brings kwargs with it. Harbor applies
+# --pk to every plugin named in the invocation and refuses the run outright
+# unless there is exactly one, so adding a second here would turn a working
+# `-- --plugin your:Plugin --pk key=value` into an error. Repeated --plugin on
+# its own is fine and stays fine; only the kwargs form collides. Say so rather
+# than prune silently, since the job then keeps the copies.
+plugin_kwargs_passed=""
+for arg in ${passthrough[@]+"${passthrough[@]}"}; do
+  case $arg in
+    --pk|--pk=*|--plugin-kwarg|--plugin-kwarg=*) plugin_kwargs_passed=yes ;;
+  esac
+done
+
+if [[ -n $keep_binaries ]]; then
+  :
+elif [[ -n $plugin_kwargs_passed ]]; then
+  {
+    echo "vaadin-bench: --pk passed through, so the prune plugin is left out"
+    echo "  Harbor allows plugin kwargs only with a single --plugin."
+    echo "  Prune afterwards with: scripts/prune-job-binaries.sh ${jobs_dir:-jobs}"
+  } >&2
+else
   export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
   common+=(--plugin vaadinbench_plugins:PrunePlatformBinaries)
 fi

@@ -231,6 +231,14 @@ RUN cp -a /root/.claude/skills/vaadin-skills \
 # it is a Vaadin application with a frontend build, and this image deliberately
 # carries no Node.
 #
+# One patch is applied to the pinned source, base/devloop/main-class.patch: at
+# this commit the daemon names the class to launch with a constant, and that
+# constant is upstream's own demo application. Every application here is
+# com.example.Application, so an unpatched daemon starts a JVM that dies with
+# ClassNotFoundException before the app can register. The patch makes it find the
+# entry point instead — a @SpringBootApplication under the application's sources,
+# or -Dvaadin.dev.mainClass when a run names one. Its header carries the detail.
+#
 # mvn-devloop is the Maven the daemon resolves with, and the whole of how the
 # connector reaches the running app: it runs the real Maven and then appends the
 # staged jar to the classpath file Maven wrote. Nothing in /app is edited, which
@@ -253,6 +261,7 @@ ARG HOTSWAP_AGENT_SHA256=4ef49724b7d8523536d2e2a7310f827f4db9f4fed3489224e05d7bf
 COPY base/devloop/ /tmp/devloop-bench/
 RUN git clone -q https://github.com/tltv/devloop /tmp/devloop \
     && git -C /tmp/devloop checkout -q "$DEVLOOP_SHA" \
+    && patch -p1 -d /tmp/devloop </tmp/devloop-bench/main-class.patch \
     && mvn -B -ntp -f /tmp/devloop/pom.xml \
         -pl .,flow-devloop,devloop-daemon -DskipTests package \
     && mkdir -p /opt/vaadin-devloop \

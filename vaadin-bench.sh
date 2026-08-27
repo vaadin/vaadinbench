@@ -286,6 +286,21 @@ fi
 check_recordings $tasks || exit 2
 
 common=(-p tasks)
+# Each trial's copy of the agent-tools CLI builds, pruned by Harbor's own plugin
+# as that trial ends rather than by this script once the whole job has. Harbor
+# emits the event it hooks from a `finally`, so a trial that crashed is pruned
+# too, and it lands before Harbor walks the trial directory to redact secrets —
+# 28 MB it then does not have to read. What is removed and why an `exclude` in a
+# task's [[artifacts]] cannot do it: scripts/prune-job-binaries.sh.
+#
+# On the command line rather than in configs/: Harbor deprecated the `plugins:`
+# job-config key and ignores it. PYTHONPATH is what makes the module importable
+# — Harbor imports a plugin by module path, and for a console script sys.path
+# starts at the virtualenv's bin directory, not at this repository.
+if [[ -z $keep_binaries ]]; then
+  export PYTHONPATH="$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}"
+  common+=(--plugin vaadinbench_plugins:PrunePlatformBinaries)
+fi
 for task in $tasks; do
   common+=(-i "$task")
 done
@@ -332,19 +347,13 @@ for config in $configs; do
   # The configuration name stays in the job name even under --job-name: two
   # configurations sharing a name would have Harbor resume one job directory for
   # both instead of running the second.
-  job_name="${job_name_prefix:+$job_name_prefix-}$config-$stamp"
-  cmd=(uv run harbor run -c "$config_file" "${common[@]}" --job-name "$job_name")
+  cmd=(uv run harbor run -c "$config_file" "${common[@]}" \
+       --job-name "${job_name_prefix:+$job_name_prefix-}$config-$stamp")
   if [[ -n $dry_run ]]; then
     printf '%q ' "${cmd[@]}"
     echo
   else
     "${cmd[@]}"
-    # Straight after the job that wrote it, so a long run does not carry every
-    # earlier job's dead weight on disk while it finishes. Only this job's
-    # directory is touched — an older one is pruned by naming it to the script.
-    if [[ -z $keep_binaries ]]; then
-      scripts/prune-job-binaries.sh "${jobs_dir:-jobs}/$job_name"
-    fi
   fi
 done
 

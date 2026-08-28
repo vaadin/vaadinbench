@@ -18,11 +18,6 @@ agent did with it, per trial, from the trial's own artifacts:
   list`. A job run without it reads as `no probe`, which is a statement about
   the job and not about the server.
 
-`tools deferred` on a Codex row means that trial's Codex reported
-`tool_search_always_defer_mcp_tools` as effectively true, so its MCP tools sit
-behind a search step rather than in the tool list. It changes what a zero in
-`calls` means, which is why it is in the row rather than in a footnote.
-
 Tool calls are counted from what the agent recorded, so a server that was
 loaded and never called is visible as such — that is the distinction the two
 `vaadin-mcp*` jobs of 2026-08-26 could not make.
@@ -112,19 +107,11 @@ def codex_evidence(trial: Path) -> tuple[str, int]:
         text = initialize.read_text(errors="replace")
         parts.append("answered" if "serverInfo" in text else "no answer")
 
-    # Codex 0.150 reports `tool_search_always_defer_mcp_tools` as effectively
-    # true, which is the standing explanation for a server that is connected
-    # and never called: its tools are behind a search step rather than in the
-    # tool list. Worth carrying into the row, since it changes what a zero in
-    # `calls` means.
-    features = probe / "features.txt"
-    if features.is_file():
-        for line in features.read_text(errors="replace").splitlines():
-            if line.startswith("tool_search_always_defer_mcp_tools"):
-                if line.rsplit(maxsplit=1)[-1] == "true":
-                    parts.append("tools deferred")
-                break
-
+    # `features.txt` is kept as an artifact but deliberately not summarised.
+    # `tool_search_always_defer_mcp_tools` reads as effectively true on every
+    # 0.150 trial, and asking the model directly (2026-08-28) showed all
+    # eleven `mcp__vaadin__*` tools in its namespace anyway — so a row saying
+    # "deferred" would state the opposite of what was measured.
     return "; ".join(parts), 0
 
 

@@ -75,7 +75,9 @@ make_trial mcp noprobe__1 codex gpt-5.6-luna >/dev/null
 
 # A Codex trial with the probe: configured, enabled, endpoint answered, and not
 # one call made — the case the two vaadin-mcp jobs of 2026-08-26 could not tell
-# apart from the server never arriving.
+# apart from the server never arriving. Its features listing defers MCP tools,
+# which must change nothing in the row: asking the model showed the tools in
+# its namespace regardless, so a "deferred" verdict here would be false.
 dir=$(make_trial mcp probed__1 codex gpt-5.6-terra)
 mkdir -p "$dir/agent/mcp-probe"
 cat >"$dir/agent/mcp-probe/config.toml" <<'TOML'
@@ -129,11 +131,10 @@ expect "$grouped" 'claude-haiku-4-5-20251001 +1 +none configured' \
   "a condition configuring nothing reads as none configured"
 expect "$grouped" 'gpt-5.6-luna +1 +no probe' \
   "a Codex trial without the probe reads as no probe"
-expect "$grouped" 'gpt-5.6-terra +1 +configured; 1× enabled; answered; tools deferred +0 +0' \
-  "a probed Codex trial reports config, listing, endpoint, deferral — and zero calls"
+expect "$grouped" 'gpt-5.6-terra +1 +configured; 1× enabled; answered +0 +0' \
+  "a probed Codex trial reports config, listing, endpoint — and zero calls"
 expect "$grouped" 'gpt-5.6-sol +1 +configured; 1× enabled; no answer +0 +1' \
-  "an unanswered endpoint and a call that was made are both reported, and a
-features listing that defers nothing adds nothing to the row"
+  "an unanswered endpoint and a call that was made are both reported"
 expect "$per_trial" 'failed__1 +codex|failed__1 +claude-code' \
   "--trials names the individual trial"
 

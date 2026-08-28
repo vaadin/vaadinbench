@@ -87,6 +87,11 @@ cat >"$dir/agent/mcp-probe/mcp-list.json" <<'JSON'
 JSON
 echo '{"result":{"serverInfo":{"name":"vaadin-docs","version":"0.8.0"}}}' \
   >"$dir/agent/mcp-probe/initialize.txt"
+cat >"$dir/agent/mcp-probe/features.txt" <<'FEATURES'
+apps                                     stable             true
+tool_search                              removed            false
+tool_search_always_defer_mcp_tools       removed            true
+FEATURES
 echo '{"type":"item.completed","item":{"type":"command_execution"}}' \
   >"$dir/agent/codex.txt"
 
@@ -98,6 +103,8 @@ printf '[mcp_servers.vaadin]\nurl = "https://mcp.vaadin.com/docs"\n' \
 echo '[{"name": "vaadin", "enabled": true}]' >"$dir/agent/mcp-probe/mcp-list.json"
 echo 'curl: (28) Operation timed out after 20000 milliseconds' \
   >"$dir/agent/mcp-probe/initialize.txt"
+printf 'tool_search_always_defer_mcp_tools       removed            false\n' \
+  >"$dir/agent/mcp-probe/features.txt"
 echo '{"name":"mcp__vaadin__search_vaadin_docs"}' >"$dir/agent/codex.txt"
 
 # --- what the report has to say ----------------------------------------------
@@ -122,10 +129,11 @@ expect "$grouped" 'claude-haiku-4-5-20251001 +1 +none configured' \
   "a condition configuring nothing reads as none configured"
 expect "$grouped" 'gpt-5.6-luna +1 +no probe' \
   "a Codex trial without the probe reads as no probe"
-expect "$grouped" 'gpt-5.6-terra +1 +configured; 1× enabled; answered +0 +0' \
-  "a probed Codex trial reports config, listing, endpoint — and zero calls"
+expect "$grouped" 'gpt-5.6-terra +1 +configured; 1× enabled; answered; tools deferred +0 +0' \
+  "a probed Codex trial reports config, listing, endpoint, deferral — and zero calls"
 expect "$grouped" 'gpt-5.6-sol +1 +configured; 1× enabled; no answer +0 +1' \
-  "an unanswered endpoint and a call that was made are both reported"
+  "an unanswered endpoint and a call that was made are both reported, and a
+features listing that defers nothing adds nothing to the row"
 expect "$per_trial" 'failed__1 +codex|failed__1 +claude-code' \
   "--trials names the individual trial"
 

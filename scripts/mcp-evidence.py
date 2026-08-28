@@ -13,8 +13,15 @@ agent did with it, per trial, from the trial's own artifacts:
 - **Codex** says nothing: `codex exec --json` never names its tools, the
   rollout's `turn_context` carries no tool list, and `$CODEX_HOME` is deleted
   when the trial ends. `agent/mcp-probe/` is where `CodexProbe` puts the
-  evidence instead; a job run without it reads as `no probe`, which is a
-  statement about the job and not about the server.
+  evidence instead — the `config.toml` it was handed, `codex mcp list`, an MCP
+  `initialize` from inside the container, `codex doctor` and `codex features
+  list`. A job run without it reads as `no probe`, which is a statement about
+  the job and not about the server.
+
+`tools deferred` on a Codex row means that trial's Codex reported
+`tool_search_always_defer_mcp_tools` as effectively true, so its MCP tools sit
+behind a search step rather than in the tool list. It changes what a zero in
+`calls` means, which is why it is in the row rather than in a footnote.
 
 Tool calls are counted from what the agent recorded, so a server that was
 loaded and never called is visible as such — that is the distinction the two
@@ -104,6 +111,19 @@ def codex_evidence(trial: Path) -> tuple[str, int]:
     if initialize.is_file():
         text = initialize.read_text(errors="replace")
         parts.append("answered" if "serverInfo" in text else "no answer")
+
+    # Codex 0.150 reports `tool_search_always_defer_mcp_tools` as effectively
+    # true, which is the standing explanation for a server that is connected
+    # and never called: its tools are behind a search step rather than in the
+    # tool list. Worth carrying into the row, since it changes what a zero in
+    # `calls` means.
+    features = probe / "features.txt"
+    if features.is_file():
+        for line in features.read_text(errors="replace").splitlines():
+            if line.startswith("tool_search_always_defer_mcp_tools"):
+                if line.rsplit(maxsplit=1)[-1] == "true":
+                    parts.append("tools deferred")
+                break
 
     return "; ".join(parts), 0
 

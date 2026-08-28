@@ -177,6 +177,13 @@ jobs:
       - name: Test the job pruning
         run: bash scripts/test-prune-job-binaries.sh
 
+      # Whether a trial's MCP servers were loaded is read off the job rather
+      # than assumed from the configuration, so the reading itself is tested:
+      # a connected server, a failed one, a condition with none, a Codex trial
+      # with no probe, and a server that loaded and was never called.
+      - name: Test the MCP evidence report
+        run: bash scripts/test-mcp-evidence.sh
+
   protected-config:
     name: Verifier config matches the task app
     runs-on: ubuntu-latest

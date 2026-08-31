@@ -155,10 +155,10 @@ RUN curl -fsSL https://chatgpt.com/codex/install.sh \
 ARG OPENCODE_VERSION=1.18.25
 RUN curl -fsSL https://opencode.ai/install \
         -o /tmp/opencode-install.sh \
-    && OPENCODE_INSTALL_DIR=/usr/local/bin \
-        bash /tmp/opencode-install.sh \
+    && bash /tmp/opencode-install.sh \
         --version "$OPENCODE_VERSION" --no-modify-path \
     && rm -f /tmp/opencode-install.sh \
+    && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode \
     && opencode --version
 
 # The Vaadin agent plugins, baked in beside the CLIs and for the same reason: they

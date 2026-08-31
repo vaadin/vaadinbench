@@ -12,6 +12,13 @@ trap cleanup EXIT
 model=Qwen3.8-27B-UD-Q5_K_XL-MTP
 base_url=http://127.0.0.1:8080/v1
 
+# OpenCode's standalone installer writes to this fixed per-user directory even
+# when path modification is disabled. The base image must expose that binary on
+# the system PATH before the preinstalled adapter can find it.
+grep -qF \
+  'ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode' \
+  base/Dockerfile
+
 output=$(TMPDIR="$work" ./vaadin-bench.sh \
   -c vaadin-skills -m "$model" -t flow-new-view -k 1 \
   --openai-compatible-model "$model" \

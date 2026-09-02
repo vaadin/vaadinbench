@@ -43,9 +43,6 @@ class PrunePlatformBinaries(BaseJobPlugin):
     job and the automatic path used during a run cannot drift apart.
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-
     async def on_job_start(self, job: Any) -> None:
         job.add_hook(TrialEvent.END, self._prune_trial)
 

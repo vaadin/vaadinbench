@@ -31,6 +31,31 @@ status=0
 . "$VB_LIB"
 mkdir -p "$FRONTEND_TOOLCHAINS"
 
+# What the online run's test phase did, for an error whose cause is in there.
+# Maven's own tail is the go-offline listing, which says nothing about why the
+# verifier's browser half never had Vaadin build a bundle. From Surefire's banner
+# on, without the download noise: the lines that carry Flow's frontend tooling,
+# npm, the tests' outcomes and any failure or crash, then Surefire's own report
+# of each class. Without the banner the tests never ran, and the plain tail is
+# the best there is.
+show_online_test_log() {
+    if ! grep -q 'T E S T S' "$logs/online.txt"; then
+        echo "  (no Surefire banner: the online run never reached the tests)"
+        tail -30 "$logs/online.txt"
+        return
+    fi
+    echo "  --- online run, test phase, filtered ---"
+    sed -n '/T E S T S/,$p' "$logs/online.txt" \
+        | grep -v -e 'Downloaded from' -e 'Downloading from' -e 'Resolved dependency' \
+        | grep -i -E 'frontend|npm|node|bundle|vite|Tests run|ERROR|WARN|Exception|Error|Killed|Results' \
+        | head -80 | sed 's/^/  | /'
+    echo "  --- Surefire reports ---"
+    local report
+    for report in "$app"/target/surefire-reports/*.txt; do
+        [ -f "$report" ] && sed 's/^/  | /' "$report"
+    done
+}
+
 for task in "$TASKS_DIR"/*/; do
     task="${task%/}"
     name=$(basename "$task")
@@ -154,7 +179,7 @@ for task in "$TASKS_DIR"/*/; do
             echo "  ERROR: the online run left no node_modules to keep — the" \
                  "verifier never started the application, so Vaadin never" \
                  "installed the frontend packages"
-            tail -30 "$logs/online.txt"
+            show_online_test_log
             status=1
             continue
         fi

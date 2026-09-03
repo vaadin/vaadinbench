@@ -148,11 +148,19 @@ RUN mkdir -p /root/.vaadin/node \
     && /root/.vaadin/node/node --version \
     && /root/.vaadin/node/node /root/.vaadin/node/lib/node_modules/npm/bin/npm-cli.js --version
 
-# Playwright's browsers, downloaded once in the warm-up stage. Copying them keeps
-# the published image free of that download, and install-deps adds the system
-# libraries Chromium needs without pinning a distro package list here. Playwright
-# ships its own Node inside driver-bundle, so the browser half of a verifier needs
-# no system Node — which is why none is installed above.
+# Playwright's browser, installed once in the warm-up stage: Chromium alone, the
+# only one a verifier drives. Copying it keeps the published image free of that
+# download, and install-deps adds the system libraries Chromium needs without
+# pinning a distro package list here. Playwright ships its own Node inside
+# driver-bundle, so the browser half of a verifier needs no system Node — which
+# is why none is installed above.
+#
+# The variable is what makes Chromium alone enough. Every Playwright.create()
+# otherwise runs `playwright install` for every browser it knows, and with
+# Firefox and WebKit absent that is a download — in a verifier with no network,
+# a failure before the first test, and in an agent's own `mvn test` the same.
+# The Java driver reads exactly this variable and then launches what is here.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY --from=warmup /root/.cache/ms-playwright /root/.cache/ms-playwright
 RUN java -cp "$(find /root/.m2 -name 'playwright-*.jar' -o -name 'driver-*.jar' \
         -o -name 'driver-bundle-*.jar' | tr '\n' ':')" \

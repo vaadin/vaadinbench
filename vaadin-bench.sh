@@ -380,12 +380,13 @@ common=(-p tasks)
 # module path on every invocation, including --keep-job-binaries and a caller's
 # own plugin-kwargs run; those options should affect pruning, not agent loading.
 runner_env=(env "PYTHONPATH=$PWD/scripts${PYTHONPATH:+:$PYTHONPATH}")
-# Each trial's copy of the agent-tools CLI builds, pruned by Harbor's own plugin
-# as that trial ends rather than by this script once the whole job has. Harbor
+# Each trial's copied agent-tools CLI builds and OpenCode state, pruned by
+# Harbor's own plugin as that trial ends rather than by this script once the
+# whole job has. Harbor
 # emits the event it hooks from a `finally`, so a trial that crashed is pruned
-# too, and it lands before Harbor walks the trial directory to redact secrets —
-# 28 MB it then does not have to read. What is removed and why an `exclude` in a
-# task's [[artifacts]] cannot do it: scripts/prune-job-binaries.sh.
+# too, and it lands before Harbor walks the trial directory to redact secrets.
+# What is removed and why an `exclude` in a task's [[artifacts]] cannot do it:
+# scripts/prune-job-binaries.sh.
 #
 # On the command line rather than in configs/: Harbor deprecated the `plugins:`
 # job-config key and ignores it. PYTHONPATH is what makes the module importable

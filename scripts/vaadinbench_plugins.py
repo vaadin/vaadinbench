@@ -27,7 +27,7 @@ PRUNE_SCRIPT = Path(__file__).resolve().parent / "prune-job-binaries.sh"
 
 
 class PrunePlatformBinaries(BaseJobPlugin):
-    """Prune each trial's copied CLI builds as that trial finishes.
+    """Prune each trial's disposable agent state as that trial finishes.
 
     What is pruned and why it cannot be an ``exclude`` in a task's
     ``[[artifacts]]``: scripts/prune-job-binaries.sh. This is only about *when*.
@@ -88,7 +88,7 @@ class PrunePlatformBinaries(BaseJobPlugin):
             raise
         except Exception:
             logger.warning(
-                "Pruning %s failed; the job keeps its copied CLI builds",
+                "Pruning %s failed; the job keeps its disposable agent state",
                 getattr(getattr(event, "config", None), "trial_name", "trial"),
                 exc_info=True,
             )

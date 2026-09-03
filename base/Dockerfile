@@ -62,7 +62,9 @@ RUN set -eu; \
     tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1; \
     rm -f /tmp/node.tar.xz; \
     /opt/node/bin/node --version; \
-    /opt/node/bin/npm --version
+    /opt/node/bin/node /opt/node/lib/node_modules/npm/bin/npm-cli.js --version
+# npm is checked through node above rather than by its own name: its shebang is
+# `#!/usr/bin/env node`, and this PATH takes effect only after the RUN.
 ENV PATH="/opt/node/bin:${PATH}"
 
 # Every task is warmed, and the tasks are discovered rather than listed, so a new

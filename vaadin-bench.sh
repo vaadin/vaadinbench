@@ -236,7 +236,7 @@ Run
   -n, --concurrent N      concurrent trials                    (Harbor's: 4)
       --timeout-multiplier F  scale every task timeout
       --job-name NAME     prefix for the job names             (default: none)
-      --keep-job-binaries keep the prebuilt CLI directory each trial copies
+      --keep-job-binaries keep disposable agent state (CLI builds and OpenCode data)
   -o, --jobs-dir DIR      where job results land               (default: jobs)
   -q, --quiet             suppress the per-trial progress displays
   -y, --yes               auto-confirm Harbor's prompts

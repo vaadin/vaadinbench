@@ -169,6 +169,14 @@ jobs:
       - name: Test the registry probe
         run: bash .github/scripts/test-anonymous-pull.sh
 
+      # Reuse skips a twenty-minute build, so what this proves is mostly the
+      # refusals: every input the base image reads forces a rebuild, and so does
+      # every case the rule cannot decide from the files. Checked against real
+      # diffs in throwaway repositories, and against this workflow's own trigger
+      # paths, so an input added there cannot go unclassified.
+      - name: Test the base-reuse decision
+        run: bash .github/scripts/test-base-image-decision.sh
+
       - name: Test the verifier entry points and library
         run: bash base/test-verifier.sh
 

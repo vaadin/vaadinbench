@@ -15,6 +15,10 @@
 #
 # Why a second image and not more layers on the first: the Maven warm-up takes
 # twenty minutes on two architectures, and a CLI release should not repeat it.
+# What makes that real rather than hoped for is that a change to this file alone
+# does not rebuild the base — the workflows build this image on the published
+# base digest instead (.github/scripts/base-image-decision.sh). A hosted runner
+# starts with no layer cache, so without that rule the split would save nothing.
 #
 # From the repository root:
 #

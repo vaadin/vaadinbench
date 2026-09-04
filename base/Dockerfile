@@ -58,8 +58,10 @@ FROM maven@sha256:1b1fc6d0168ea616afd1c861d6f32ec37c9ec2ffe88a0351b3771dd4ad86b0
 #
 # Anything an agent needs — the CLIs, procps for Claude Code — belongs in
 # agents.Dockerfile, which builds on this image. Keeping them apart means a CLI
-# bump rebuilds a two-minute layer and not the twenty-minute warm-up, and the
-# verifier images, which build on this one, carry no agent at all.
+# bump rebuilds a two-minute layer and not the twenty-minute warm-up — the
+# workflows reuse the published base whenever nothing this file reads changed
+# (.github/scripts/base-image-decision.sh) — and the verifier images, which build
+# on this one, carry no agent at all.
 #
 # nodejs and npm are deliberately absent. Playwright carries its own Node inside
 # driver-bundle, and Vaadin needs no frontend build to serve a view, so the graded

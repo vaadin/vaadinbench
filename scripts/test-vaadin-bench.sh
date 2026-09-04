@@ -8,6 +8,12 @@
 # idea of them. The opt-in OpenCode row is then instantiated through Harbor's
 # agent factory and its install() driven against a fake environment, to prove the
 # preinstalled binary is used and npm never runs.
+#
+# --print-config alone would not notice an unusable skill source: it records the
+# string and resolves nothing, so a source that fails at job initialisation still
+# prints a clean config. Every skill each row carries is therefore also put
+# through Harbor's own resolve_skill_sources here, which is the call a real run
+# makes, and the directory it returns is required to hold the skills.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -41,7 +47,14 @@ from types import SimpleNamespace
 
 from harbor.agents.factory import AgentFactory
 from harbor.models.job.config import JobConfig
+from harbor.skills import resolve_skill_sources
 from vaadinbench_agents import PreinstalledOpenCode
+
+# The commit conditions/*/skills.txt pins, and the directory the wrapper checks
+# it out into. Named here rather than pattern-matched, so a silent change of pin
+# fails this test instead of passing it.
+SHA = "641ff1ecfce9d8065b940a84ca5044af83d472b5"
+SKILLS = f".skills-cache/vaadin/agent-skills/{SHA}/skills"
 
 def load(name):
     return JobConfig.model_validate(json.loads(Path(f"/tmp/vb-{name}.json").read_text()))
@@ -54,7 +67,7 @@ assert claude.n_attempts == 1
 [row] = claude.agents
 assert row.name == "claude-code"
 assert row.model_name == "anthropic/claude-haiku-4-5-20251001"
-assert row.skills == ["vaadin/agent-skills@641ff1ecfce9d8065b940a84ca5044af83d472b5"], row.skills
+assert row.skills == [SKILLS], row.skills
 assert row.extra_allowed_hosts == ["api.anthropic.com", "mcp.vaadin.com"], row.extra_allowed_hosts
 assert row.kwargs == {"config": {"enabledPlugins": {"vaadin-agent-tools@skills-dir": True}}}, row.kwargs
 assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs"]
@@ -85,7 +98,7 @@ opencode = load("opencode")
 # `-a module:Class` lands in name; the factory resolves it as an import path.
 assert row.name == "vaadinbench_agents:PreinstalledOpenCode", (row.name, row.import_path)
 assert row.model_name == "openai-compatible/Qwen3.8-27B-UD-Q5_K_XL-MTP"
-assert row.skills == ["vaadin/agent-skills@641ff1ecfce9d8065b940a84ca5044af83d472b5"]
+assert row.skills == [SKILLS]
 assert row.extra_allowed_hosts == ["127.0.0.1", "mcp.vaadin.com"], row.extra_allowed_hosts
 assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs"]
 assert row.kwargs == {
@@ -119,6 +132,18 @@ asyncio.run(agent.install(environment))
 assert environment.commands[0] == "command -v opencode >/dev/null 2>&1"
 assert "npm" not in "\n".join(environment.commands)
 assert any("nvm.sh" in command for command in environment.commands[1:])
+
+# The check --print-config cannot make: every skill source any row carries is put
+# through the call a real run makes, and must come back as a directory that holds
+# skills. A source Harbor cannot resolve raises here, as it would at job start.
+for name in ("claude", "codex", "vanilla", "opencode"):
+    for row in load(name).agents:
+        for path in resolve_skill_sources(row.skills):
+            assert path.is_dir(), (name, path)
+            skills = sorted(p.name for p in path.iterdir() if (p / "SKILL.md").is_file())
+            assert skills, (name, path, "no skill has a SKILL.md")
+            assert SHA in str(path), (name, path, "resolved skills do not name the pinned commit")
+
 print("resolved configs ok")
 PY
 
@@ -137,6 +162,20 @@ fails unknown-model "no model matches 'nosuch'" -m nosuch
 fails unknown-condition "no condition matches 'vaadin-skill'" -c vaadin-skill
 fails default-narrowed "runs everything" --default -m haiku
 fails bad-url "absolute http(s) URL" -m x --openai-compatible-model x --openai-compatible-base-url model-host:8080
+
+# A skill source that is not a commit pin is refused before any run is emitted:
+# a branch or a tag moves, and a condition whose skills move is not a condition.
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+cp -a conditions "$scratch/conditions.bak"
+echo "vaadin/agent-skills@main" >conditions/vaadin-skills/skills.txt
+if out=$(uv run --quiet vaadin-bench.py -c vaadin-skills -m haiku -t flow-new-view --dry-run 2>&1); then
+  rm -rf conditions && mv "$scratch/conditions.bak" conditions
+  echo "a moving skill ref was accepted:" >&2; echo "$out" >&2; exit 1
+fi
+rm -rf conditions && mv "$scratch/conditions.bak" conditions
+printf '%s\n' "$out" | grep -q "40-character commit SHA" \
+  || { echo "moving-ref rejection lacks the expected advice:" >&2; echo "$out" >&2; exit 1; }
 
 # A glob is exact: vaadin-skills is one condition, vaadin-skills* three, and a
 # model pattern with no glob also matches as a substring.

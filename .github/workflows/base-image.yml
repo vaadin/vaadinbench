@@ -83,6 +83,8 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base-reuse decision diffs against the previous head
 
       # The same check the validate workflow runs on every pull request: the six
       # task Dockerfiles are the only functional copies of these references, and
@@ -94,6 +96,23 @@ jobs:
           echo "AGENTS=ghcr.io/$owner/vaadinbench-agents" >>"$GITHUB_ENV"
           bash .github/scripts/base-image-reference.sh \
             "ghcr.io/$owner/vaadinbench-base" "ghcr.io/$owner/vaadinbench-agents"
+
+      # Whether this run has to rebuild the base or can build the agents image on
+      # the one already published. Every architecture and the publish job below ask
+      # the same script the same question and get the same answer: it reads only
+      # committed files and the diff, so nothing has to be carried between jobs.
+      # What decides and what forces a rebuild: base-image-decision.sh.
+      - name: Decide whether the base must be rebuilt
+        id: plan
+        run: |
+          decision=$(bash .github/scripts/base-image-decision.sh \
+            "${{ github.event.before }}" "${{ github.event_name }}")
+          if [ "$decision" = rebuild ]; then
+            echo "reuse=" >>"$GITHUB_OUTPUT"
+          else
+            echo "reuse=${decision#reuse }" >>"$GITHUB_OUTPUT"
+          fi
+          echo "$decision" >>"$GITHUB_STEP_SUMMARY"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -125,9 +144,19 @@ jobs:
               >"/tmp/digests/$name-${{ matrix.arch }}"
             cat "/tmp/digests/$name-${{ matrix.arch }}"
           }
-          build base "$BASE" base/Dockerfile
-          build agents "$AGENTS" base/agents.Dockerfile \
-            --build-arg "BASE_IMAGE=$BASE@$(cat /tmp/digests/base-${{ matrix.arch }})"
+          # The base this architecture's agents image is built on: the one just
+          # built when there is one, and otherwise the published digest, which is
+          # a manifest list — the daemon selects this architecture's image from
+          # it, so the agents image still lands on a base of its own platform.
+          reuse='${{ steps.plan.outputs.reuse }}'
+          if [ -n "$reuse" ]; then
+            echo "reusing $reuse; not rebuilding the base"
+            base_ref=$reuse
+          else
+            build base "$BASE" base/Dockerfile
+            base_ref="$BASE@$(cat /tmp/digests/base-${{ matrix.arch }})"
+          fi
+          build agents "$AGENTS" base/agents.Dockerfile --build-arg "BASE_IMAGE=$base_ref"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -146,6 +175,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base-reuse decision diffs against the previous head
 
       - uses: actions/download-artifact@v4
         with:
@@ -170,12 +201,31 @@ jobs:
           version=$(tr -d '[:space:]' <base/stack-version.txt)
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "OWNER=$owner" >>"$GITHUB_ENV"
+
+          # The same question the build job asked, asked again rather than passed
+          # along: the answer is a function of the committed files and the diff,
+          # so re-deriving it cannot disagree, and there is no state to keep in
+          # step. When the base was reused there are no per-architecture base
+          # digests to assemble — the published manifest list is what this run
+          # ships, and it is re-tagged so :$version and :<commit> name it too.
+          reuse=$(bash .github/scripts/base-image-decision.sh \
+            "${{ github.event.before }}" "${{ github.event_name }}")
+          if [ "$reuse" = rebuild ]; then
+            reuse=""
+          else
+            reuse=${reuse#reuse }
+          fi
+
           for name in base agents; do
             image="ghcr.io/$owner/vaadinbench-$name"
             refs=""
-            for digest in /tmp/digests/$name-*; do
-              refs="$refs $image@$(cat "$digest")"
-            done
+            if [ "$name" = base ] && [ -n "$reuse" ]; then
+              refs=$reuse
+            else
+              for digest in /tmp/digests/$name-*; do
+                refs="$refs $image@$(cat "$digest")"
+              done
+            fi
             docker buildx imagetools create \
               -t "$image:$version" -t "$image:${{ github.sha }}" $refs
             list=$(docker buildx imagetools inspect "$image:$version" \

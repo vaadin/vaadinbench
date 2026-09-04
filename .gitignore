@@ -31,3 +31,7 @@ vite.generated.ts
 # Worktrees this session creates under .claude/ are checkouts of this same
 # repository, not content of it.
 .claude/worktrees/
+
+# Skills checked out from their pinned commit by vaadin-bench.py (see
+# conditions/README.md). Reproducible from conditions/*/skills.txt.
+/.skills-cache/

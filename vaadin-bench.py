@@ -26,6 +26,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -215,13 +216,22 @@ def resolve_skill(source: str) -> str:
 def _checkout_skills(clone_url: str, sha: str, destination: Path) -> None:
     """Sparse-checkout `skills/` at one commit, atomically.
 
-    Built in a sibling directory and renamed, so an interrupted checkout cannot
+    Built elsewhere and renamed into place, so an interrupted checkout cannot
     leave a half-written tree that the caller's existence check would accept as
     a cached one.
+
+    Every invocation stages into a directory of its own, because more than one
+    can be populating the same commit at the same time: a fresh clone with
+    several model runs started against it hits the same cache miss in each. A
+    staging path derived from the commit would be shared, and each process both
+    deletes it before starting and again on the way out — so one would remove
+    another's running checkout, or fail outright creating a directory that is
+    already there. A private directory cannot be taken away, and the rename that
+    publishes it is the only shared step: whoever loses it did redundant work on
+    an identical commit, so its copy is simply dropped.
     """
-    staging = destination.with_name(destination.name + ".partial")
-    shutil.rmtree(staging, ignore_errors=True)
-    staging.mkdir(parents=True)
+    SKILLS_CACHE.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(dir=SKILLS_CACHE, prefix=".staging-"))
     steps = [
         ["git", "init", "--quiet"],
         ["git", "remote", "add", "origin", clone_url],
@@ -240,7 +250,16 @@ def _checkout_skills(clone_url: str, sha: str, destination: Path) -> None:
                 )
         # The cache is keyed by the commit, so the history is dead weight.
         shutil.rmtree(staging / ".git", ignore_errors=True)
-        staging.replace(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            staging.replace(destination)
+        except OSError:
+            # A rename onto a directory that is already populated fails rather
+            # than replacing it, which is what makes this safe: the other
+            # checkout is of the same commit, so it is not merely acceptable to
+            # keep, it is the same bytes. Anything else is a real failure.
+            if not (destination / "skills").is_dir():
+                raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 

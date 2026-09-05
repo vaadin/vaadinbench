@@ -84,7 +84,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # the base-reuse decision diffs against the previous head
+          # The base-reuse decision diffs this checkout against the commit the
+          # published base was built from, which can be many pushes back.
+          fetch-depth: 0
 
       # The same check the validate workflow runs on every pull request: the six
       # task Dockerfiles are the only functional copies of these references, and
@@ -99,14 +101,17 @@ jobs:
 
       # Whether this run has to rebuild the base or can build the agents image on
       # the one already published. Every architecture and the publish job below ask
-      # the same script the same question and get the same answer: it reads only
-      # committed files and the diff, so nothing has to be carried between jobs.
-      # What decides and what forces a rebuild: base-image-decision.sh.
+      # the same question and get the same answer: it is decided from the committed
+      # files and the candidate image's own build revision, so nothing has to be
+      # carried between jobs. Why the image's revision and not this push's diff:
+      # base-image-decision.sh.
       - name: Decide whether the base must be rebuilt
         id: plan
         run: |
+          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
+          revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
           decision=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event.before }}" "${{ github.event_name }}")
+            "${{ github.event_name }}" "$revision")
           if [ "$decision" = rebuild ]; then
             echo "reuse=" >>"$GITHUB_OUTPUT"
           else
@@ -176,7 +181,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # the base-reuse decision diffs against the previous head
+          fetch-depth: 0 # as above: the decision diffs against the base's revision
 
       - uses: actions/download-artifact@v4
         with:
@@ -203,13 +208,16 @@ jobs:
           echo "OWNER=$owner" >>"$GITHUB_ENV"
 
           # The same question the build job asked, asked again rather than passed
-          # along: the answer is a function of the committed files and the diff,
-          # so re-deriving it cannot disagree, and there is no state to keep in
-          # step. When the base was reused there are no per-architecture base
-          # digests to assemble — the published manifest list is what this run
-          # ships, and it is re-tagged so :$version and :<commit> name it too.
+          # along: the answer is a function of the committed files and the base's
+          # own recorded revision, so re-deriving it cannot disagree, and there is
+          # no state to keep in step. When the base was reused there are no
+          # per-architecture base digests to assemble — the published manifest
+          # list is what this run ships, and it is re-tagged so :$version and
+          # :<commit> name it too.
+          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
           reuse=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event.before }}" "${{ github.event_name }}")
+            "${{ github.event_name }}" \
+            "$(bash .github/scripts/base-image-revision.sh "$pinned")")
           if [ "$reuse" = rebuild ]; then
             reuse=""
           else

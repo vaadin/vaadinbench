@@ -76,9 +76,10 @@ jobs:
       - name: Build the base and agents images
         if: steps.select.outputs.tasks != ''
         run: |
+          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
           decision=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event.pull_request.base.sha || github.event.before }}" \
-            "${{ github.event_name }}")
+            "${{ github.event_name }}" \
+            "$(bash .github/scripts/base-image-revision.sh "$pinned")")
           if [ "$decision" = rebuild ]; then
             docker build -t vaadinbench-base:ci -f base/Dockerfile .
             base_ref=vaadinbench-base:ci

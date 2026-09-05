@@ -267,6 +267,12 @@ jobs:
       # base/agents.Dockerfile, which is under base/** and would start this
       # workflow again; [skip ci] keeps every workflow off a commit that changes
       # one line per file and no behaviour.
+      #
+      # That marker is read from anywhere in a commit message, not only its first
+      # line — so a commit that merely mentions it, in a body explaining this
+      # step for instance, silently runs no workflow at all and leaves a head
+      # with no checks rather than failing ones. Write it as skip-ci, or name it
+      # without the brackets, anywhere it is being discussed rather than used.
       - name: Pin the digests into every task Dockerfile
         run: |
           # Applied to whatever main is at this moment, not to the commit that

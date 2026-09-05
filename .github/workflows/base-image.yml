@@ -58,8 +58,59 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decided once, here, and handed to every job that needs it. It used to be
+  # re-derived per job on the argument that a function of committed files cannot
+  # disagree with itself — but the moment provenance came from the registry that
+  # stopped being true: base-image-revision.sh turns any inspection failure into
+  # an empty revision, which reads as a rebuild. One architecture reusing while
+  # the other rebuilt would upload a single base digest, and the assembly below
+  # would publish and pin a one-architecture base for every verifier; a publish
+  # job that alone failed to inspect would try to assemble base digests nobody
+  # uploaded. The choice is made once so it cannot differ.
+  plan:
+    name: Decide whether the base must be rebuilt
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      reuse: ${{ steps.decide.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The decision diffs this checkout against the commit the published
+          # base was built from, which can be many pushes back.
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # What decides, and why it reads the image's own build revision rather than
+      # this push's diff: base-image-decision.sh.
+      - name: Decide
+        id: decide
+        run: |
+          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
+          revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
+          decision=$(bash .github/scripts/base-image-decision.sh \
+            "${{ github.event_name }}" "$revision")
+          if [ "$decision" = rebuild ]; then
+            echo "reuse=" >>"$GITHUB_OUTPUT"
+          else
+            echo "reuse=${decision#reuse }" >>"$GITHUB_OUTPUT"
+          fi
+          echo "$decision" >>"$GITHUB_STEP_SUMMARY"
+
   build:
     name: Build ${{ matrix.arch }}
+    needs: plan
     # Whatever ref a manual dispatch names, only main publishes. This workflow
     # overwrites the stable tags and pushes a commit to main at the end, so a run
     # from a branch could put an unreviewed image behind the published tag and
@@ -99,26 +150,6 @@ jobs:
           bash .github/scripts/base-image-reference.sh \
             "ghcr.io/$owner/vaadinbench-base" "ghcr.io/$owner/vaadinbench-agents"
 
-      # Whether this run has to rebuild the base or can build the agents image on
-      # the one already published. Every architecture and the publish job below ask
-      # the same question and get the same answer: it is decided from the committed
-      # files and the candidate image's own build revision, so nothing has to be
-      # carried between jobs. Why the image's revision and not this push's diff:
-      # base-image-decision.sh.
-      - name: Decide whether the base must be rebuilt
-        id: plan
-        run: |
-          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
-          revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
-          decision=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event_name }}" "$revision")
-          if [ "$decision" = rebuild ]; then
-            echo "reuse=" >>"$GITHUB_OUTPUT"
-          else
-            echo "reuse=${decision#reuse }" >>"$GITHUB_OUTPUT"
-          fi
-          echo "$decision" >>"$GITHUB_STEP_SUMMARY"
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -153,7 +184,7 @@ jobs:
           # built when there is one, and otherwise the published digest, which is
           # a manifest list — the daemon selects this architecture's image from
           # it, so the agents image still lands on a base of its own platform.
-          reuse='${{ steps.plan.outputs.reuse }}'
+          reuse='${{ needs.plan.outputs.reuse }}'
           if [ -n "$reuse" ]; then
             echo "reusing $reuse; not rebuilding the base"
             base_ref=$reuse
@@ -171,7 +202,7 @@ jobs:
 
   publish:
     name: Tag, verify and pin
-    needs: build
+    needs: [plan, build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -207,22 +238,18 @@ jobs:
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "OWNER=$owner" >>"$GITHUB_ENV"
 
-          # The same question the build job asked, asked again rather than passed
-          # along: the answer is a function of the committed files and the base's
-          # own recorded revision, so re-deriving it cannot disagree, and there is
-          # no state to keep in step. When the base was reused there are no
-          # per-architecture base digests to assemble — the published manifest
-          # list is what this run ships, and it is re-tagged so :$version and
-          # :<commit> name it too.
-          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
-          reuse=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event_name }}" \
-            "$(bash .github/scripts/base-image-revision.sh "$pinned")")
-          if [ "$reuse" = rebuild ]; then
-            reuse=""
-          else
-            reuse=${reuse#reuse }
-          fi
+          # The plan job's decision, not one of this job's own: see the comment
+          # on that job. When the base was reused there are no per-architecture
+          # base digests to assemble — the published manifest list is what this
+          # run ships, and it is re-tagged so :$version and :<commit> name it too.
+          reuse='${{ needs.plan.outputs.reuse }}'
+
+          # Every architecture the build matrix covers must have uploaded a digest
+          # before an image is assembled from them, so a missing or half-finished
+          # build cannot become a manifest list naming one architecture. Kept in
+          # step with the matrix by test-base-image-decision.sh, which reads both
+          # out of this file and fails if they differ.
+          expected_arches="amd64 arm64"
 
           for name in base agents; do
             image="ghcr.io/$owner/vaadinbench-$name"
@@ -230,7 +257,13 @@ jobs:
             if [ "$name" = base ] && [ -n "$reuse" ]; then
               refs=$reuse
             else
-              for digest in /tmp/digests/$name-*; do
+              for arch in $expected_arches; do
+                digest="/tmp/digests/$name-$arch"
+                if [ ! -s "$digest" ]; then
+                  echo "::error::$name was built for $expected_arches but $arch" \
+                       "uploaded no digest; refusing to publish a partial image"
+                  exit 1
+                fi
                 refs="$refs $image@$(cat "$digest")"
               done
             fi

@@ -229,5 +229,53 @@ for line in block.group(1).splitlines():
 PY
 )
 
+# The decision is made in one job and consumed by the others. Re-deriving it per
+# job was unsound once provenance came from the registry: an inspection that fails
+# for one job alone reads as a rebuild there and a reuse elsewhere, which uploads
+# one architecture's base digest and publishes a manifest list naming it alone.
+# Read out of the workflow rather than trusted to stay that way.
+workflow_checks=$(python3 - "$WORKFLOW" <<'PY'
+import re, sys, yaml
+
+text = open(sys.argv[1]).read()
+document = yaml.safe_load(text)
+jobs = document["jobs"]
+problems = []
+
+# Exactly one job may run the decision; everyone else takes its output.
+# The test script's own name contains the decision script's, so the match has to
+# exclude it: what is being looked for is the decision actually being run.
+runs_decision = re.compile(r"(?<!test-)base-image-decision\.sh")
+deciding = [name for name, job in jobs.items() if runs_decision.search(yaml.dump(job))]
+if deciding != ["plan"]:
+    problems.append(f"base-image-decision.sh runs in {deciding}, want ['plan']")
+for name in ("build", "publish"):
+    needs = jobs[name].get("needs") or []
+    needs = [needs] if isinstance(needs, str) else needs
+    if "plan" not in needs:
+        problems.append(f"job {name} does not need the plan job")
+    if "needs.plan.outputs.reuse" not in yaml.dump(jobs[name]):
+        problems.append(f"job {name} does not read the plan job's decision")
+
+# The architectures the publish job insists on must be the ones actually built.
+built = sorted(entry["arch"] for entry in jobs["build"]["strategy"]["matrix"]["include"])
+expected = re.search(r'expected_arches="([^"]*)"', text)
+if not expected:
+    problems.append("the publish job names no expected architectures")
+elif sorted(expected.group(1).split()) != built:
+    problems.append(
+        f"publish expects {expected.group(1)!r} but the matrix builds {' '.join(built)}"
+    )
+
+print("\n".join(problems))
+PY
+)
+if [ -n "$workflow_checks" ]; then
+    printf '%s\n' "$workflow_checks" | sed 's/^/FAIL workflow: /' >&2
+    status=1
+else
+    echo "ok   one job decides, both consumers read it, arches agree with the matrix"
+fi
+
 [ $status -eq 0 ] && echo "Base-image decision tests passed."
 exit $status

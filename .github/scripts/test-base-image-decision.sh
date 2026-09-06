@@ -24,6 +24,21 @@ scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 status=0
 
+# One check below reads the workflow as YAML, and PyYAML is not part of a stock
+# Python: it happens to be present on the CI runner and on most Linux boxes, and
+# is absent on macOS, where this used to fail at the last case having reported
+# everything before it as passing. Fall back to uv, which this repository already
+# requires, so the check runs the same way everywhere.
+yaml_python=(python3)
+if ! python3 -c 'import yaml' 2>/dev/null; then
+    if command -v uv >/dev/null 2>&1; then
+        yaml_python=(uv run --no-project --quiet --with pyyaml python3)
+    else
+        echo "FAIL neither python3 with PyYAML nor uv is available to read the workflow" >&2
+        exit 1
+    fi
+fi
+
 report() { # $1 label, $2 wanted first word, $3 what was printed
     local got=${3%% *}
     if [ "$got" != "$2" ]; then
@@ -234,7 +249,7 @@ PY
 # for one job alone reads as a rebuild there and a reuse elsewhere, which uploads
 # one architecture's base digest and publishes a manifest list naming it alone.
 # Read out of the workflow rather than trusted to stay that way.
-workflow_checks=$(python3 - "$WORKFLOW" <<'PY'
+workflow_checks=$("${yaml_python[@]}" - "$WORKFLOW" <<'PY'
 import re, sys, yaml
 
 text = open(sys.argv[1]).read()

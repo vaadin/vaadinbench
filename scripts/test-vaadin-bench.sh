@@ -34,10 +34,10 @@ resolve() {
   eval "$cmd --print-config"
 }
 
-resolve claude -c vaadin-skills-tools -m haiku -t flow-new-view -k 1 >/tmp/vb-claude.json
+resolve claude -c vaadin-skills-mcp-tools -m haiku -t flow-new-view -k 1 >/tmp/vb-claude.json
 resolve codex -c vaadin-mcp-java -m 'openai/*' -t flow-new-view -k 2 -n 3 >/tmp/vb-codex.json
 resolve vanilla -c vanilla -m sonnet -t flow-grid-filtering --keep-job-binaries >/tmp/vb-vanilla.json
-resolve opencode -c vaadin-skills -m "$model" -t flow-new-view -k 1 \
+resolve opencode -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
   --openai-compatible-model "$model" --openai-compatible-base-url "$base_url" >/tmp/vb-opencode.json
 
 uv run --quiet python - <<'PY'
@@ -157,7 +157,7 @@ fails() { # label, expected text, args...
 }
 fails half-pair "must be used together" -c vanilla -m "$model" --openai-compatible-model "$model"
 fails plugins-are-claude-only "no matching agent or model, skipped" \
-  -c vaadin-skills-tools -m "$model" --openai-compatible-model "$model" --openai-compatible-base-url "$base_url"
+  -c vaadin-skills-mcp-tools -m "$model" --openai-compatible-model "$model" --openai-compatible-base-url "$base_url"
 fails unknown-model "no model matches 'nosuch'" -m nosuch
 fails unknown-condition "no condition matches 'vaadin-skill'" -c vaadin-skill
 fails default-narrowed "runs everything" --default -m haiku
@@ -228,14 +228,14 @@ rm -rf conditions && mv "$scratch/conditions.bak" conditions
 printf '%s\n' "$out" | grep -q "40-character commit SHA" \
   || { echo "moving-ref rejection lacks the expected advice:" >&2; echo "$out" >&2; exit 1; }
 
-# A glob is exact: vaadin-skills is one condition, vaadin-skills* three, and a
+# A glob is exact: vaadin-skills is one condition, vaadin-skills* four, and a
 # model pattern with no glob also matches as a substring.
 count() { uv run --quiet vaadin-bench.py "$@" --dry-run | grep -c '^env PYTHONPATH='; }
 [ "$(count -c vaadin-skills -m sol)" = "1" ]
-[ "$(count -c 'vaadin-skills*' -m sol)" = "2" ]     # vaadin-skills-tools has no Codex form
-[ "$(count -c 'vaadin-skills*' -m haiku)" = "3" ]
-[ "$(count -m luna)" = "5" ]
-[ "$(count --default)" = "11" ]
+[ "$(count -c 'vaadin-skills*' -m sol)" = "3" ]     # vaadin-skills-mcp-tools has no Codex form
+[ "$(count -c 'vaadin-skills*' -m haiku)" = "4" ]
+[ "$(count -m luna)" = "6" ]
+[ "$(count --default)" = "13" ]
 
 # The prune plugin rides along unless told not to. --print-config does not echo
 # plugins, so this is read off the command line.

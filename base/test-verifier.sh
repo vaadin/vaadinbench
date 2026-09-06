@@ -10,7 +10,11 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/vaadinbench-verifier-test.XXXXXX")
+# Canonicalised, because the toolchain-restore assertion below compares a path
+# the library recorded with `cd && pwd` against one built from this: macOS sets
+# TMPDIR with a trailing slash, and the double slash mktemp then keeps is
+# exactly what pwd folds away.
+WORK=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/vaadinbench-verifier-test.XXXXXX")" && pwd)
 trap 'rm -rf "$WORK"' EXIT
 
 # Assert explicitly rather than with a bare `test`: some checks below run inside

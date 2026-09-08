@@ -31,9 +31,9 @@ class EmployeeListBrowserVerifierTest {
         Files.createDirectories(OUTPUT);
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                .setArgs(List.of("--no-sandbox", "--disable-dev-shm-usage")));
+                .setArgs(List.of("--no-sandbox", "--disable-dev-shm-usage", "--font-render-hinting=none")));
         Files.writeString(OUTPUT.resolve("browser.txt"), browser.version() + "\n"
-                + "1440x1024 CSS; deviceScaleFactor=2; en-GB; UTC; light; reduced-motion\n");
+                + "1440x1024 CSS; deviceScaleFactor=2; en-GB; UTC; light; reduced-motion; font-render-hinting=none\n");
     }
     @AfterAll static void stop() { if (browser != null) browser.close(); if (playwright != null) playwright.close(); }
     @BeforeEach void open() {

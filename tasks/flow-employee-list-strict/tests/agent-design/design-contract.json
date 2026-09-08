@@ -6,7 +6,8 @@
   "height": 1024,
   "deviceScaleFactor": 2,
   "locale": "en-GB",
-  "timezone": "UTC"
+  "timezone": "UTC",
+  "fontRenderHinting": "none"
 },
   "provenance": {
   "references": {

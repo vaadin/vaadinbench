@@ -20,7 +20,7 @@ public final class CalibrationRunner {
         String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(contract));
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                     .setArgs(List.of("--no-sandbox", "--disable-dev-shm-usage")))) {
+                     .setArgs(List.of("--no-sandbox", "--disable-dev-shm-usage", "--font-render-hinting=none")))) {
             Files.writeString(output.resolve("environment.txt"), "Chromium " + browser.version() + "\n"
                     + System.getProperty("os.name") + " " + System.getProperty("os.arch") + "\ncontract " + hash + "\n");
             for (JsonElement item : cases) {

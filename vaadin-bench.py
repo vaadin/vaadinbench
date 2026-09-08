@@ -77,7 +77,10 @@ AGENTS: list[Agent] = [
     Agent(
         label="codex",
         harbor_name="codex",
-        models=("openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol"),
+        models=(
+            "openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol",
+            "openai/gpt-6-astra",
+        ),
         hosts=("api.openai.com", "chatgpt.com", "auth.openai.com"),
     ),
 ]

@@ -36,6 +36,7 @@ resolve() {
 
 resolve claude -c vaadin-skills-mcp-tools -m haiku -t flow-new-view -k 1 >/tmp/vb-claude.json
 resolve codex -c vaadin-mcp-java -m 'openai/*' -t flow-new-view -k 2 -n 3 >/tmp/vb-codex.json
+resolve astra -c vanilla -m astra -t flow-employee-list-strict -k 1 >/tmp/vb-astra.json
 resolve vanilla -c vanilla -m sonnet -t flow-grid-filtering --keep-job-binaries >/tmp/vb-vanilla.json
 resolve opencode -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
   --openai-compatible-model "$model" --openai-compatible-base-url "$base_url" >/tmp/vb-opencode.json
@@ -72,16 +73,24 @@ assert row.extra_allowed_hosts == ["api.anthropic.com", "mcp.vaadin.com"], row.e
 assert row.kwargs == {"config": {"enabledPlugins": {"vaadin-agent-tools@skills-dir": True}}}, row.kwargs
 assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs"]
 
-# Codex, three models in one run, the newer documentation server, no skills.
+# Codex, four models in one run, the newer documentation server, no skills.
 codex = load("codex")
 assert codex.n_attempts == 2 and codex.n_concurrent_trials == 3
-assert [r.model_name for r in codex.agents] == ["openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol"]
+assert [r.model_name for r in codex.agents] == ["openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol", "openai/gpt-6-astra"]
 for row in codex.agents:
     assert row.name == "codex"
     assert row.skills == []
     assert row.kwargs == {}
     assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai.com", "mcp.vaadin.com"]
     assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs-java/docs"]
+
+# The short Astra selector resolves to exactly one Codex agent.
+astra = load("astra")
+[row] = astra.agents
+assert astra.n_attempts == 1
+assert row.name == "codex" and row.model_name == "openai/gpt-6-astra"
+assert row.skills == [] and row.mcp_servers == []
+assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai.com"]
 
 # The control: nothing but the model, and the baked Claude plugin explicitly off.
 vanilla = load("vanilla")

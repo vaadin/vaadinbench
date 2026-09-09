@@ -98,5 +98,10 @@ RUN mkdir -p /root/.claude/skills \
     && rm -rf /root/.claude/skills/vaadin-agent-tools/.git \
     && claude plugin list
 
+# Spring Boot writes application logs here as well as to the console. Harbor
+# preserves this directory in the trial output. Set only in the agents image
+# so the separate verifier keeps its own logging configuration.
+ENV LOGGING_FILE_NAME=/logs/agent/application.log
+
 # No WORKDIR here on purpose; see the base Dockerfile. Each task sets its own.
 WORKDIR /

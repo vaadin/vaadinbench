@@ -1,0 +1,136 @@
+{
+  "totalEmployees": 246,
+  "logisticsEmployees": 192,
+  "rows": [
+    {
+      "id": "e01",
+      "name": "Henry Thompson",
+      "department": "Marketing",
+      "jobTitle": "Content strategist",
+      "status": "active",
+      "startDate": "March 12, 2021"
+    },
+    {
+      "id": "e02",
+      "name": "Liam Johnson",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "April 5, 2022"
+    },
+    {
+      "id": "e03",
+      "name": "Justin Smith",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "June 30, 2020"
+    },
+    {
+      "id": "e04",
+      "name": "Jordan Brown",
+      "department": "Finance",
+      "jobTitle": "Accountant",
+      "status": "active",
+      "startDate": "August 15, 2023"
+    },
+    {
+      "id": "e05",
+      "name": "Jacob Williams",
+      "department": "HR",
+      "jobTitle": "Recruiter",
+      "status": "active",
+      "startDate": "January 1, 2024"
+    },
+    {
+      "id": "e06",
+      "name": "Robert Davis",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "inactive",
+      "startDate": "February 29, 2020"
+    },
+    {
+      "id": "e07",
+      "name": "Maya Garcia",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "on_leave",
+      "startDate": "November 11, 2021"
+    },
+    {
+      "id": "e08",
+      "name": "Andrew Martinez",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "December 25, 2022"
+    },
+    {
+      "id": "e09",
+      "name": "Samantha Rodriguez",
+      "department": "Marketing",
+      "jobTitle": "Marketing lead",
+      "status": "active",
+      "startDate": "July 4, 2023"
+    },
+    {
+      "id": "e10",
+      "name": "Angel Wilson",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "September 9, 2021"
+    },
+    {
+      "id": "e11",
+      "name": "Henry Thompson",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "March 12, 2021"
+    },
+    {
+      "id": "e12",
+      "name": "Liam Johnson",
+      "department": "Finance",
+      "jobTitle": "CFO",
+      "status": "active",
+      "startDate": "April 5, 2022"
+    },
+    {
+      "id": "e13",
+      "name": "Justin Smith",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "June 30, 2020"
+    },
+    {
+      "id": "e14",
+      "name": "Jordan Brown",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "inactive",
+      "startDate": "August 15, 2023"
+    },
+    {
+      "id": "e15",
+      "name": "Jacob Williams",
+      "department": "Deliveries",
+      "jobTitle": "Logistics handler",
+      "status": "active",
+      "startDate": "January 1, 2024"
+    }
+  ],
+  "detail": {
+    "id": "e02",
+    "firstName": "Liam",
+    "lastName": "Johnson",
+    "phone": "+91 555 1213 456",
+    "email": "liam.johnson@example.com",
+    "dateOfBirth": "22/06/1972",
+    "tenure": "4 years 3 months in service",
+    "assignedTasks": 13
+  }
+}

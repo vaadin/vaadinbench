@@ -41,7 +41,10 @@ resolve claude-all -c vanilla -m 'anthropic/*' -t flow-employee-list-strict -k 1
 resolve astra -c vanilla -m astra -t flow-employee-list-strict -k 1 >/tmp/vb-astra.json
 resolve vanilla -c vanilla -m sonnet -t flow-grid-filtering --keep-job-binaries >/tmp/vb-vanilla.json
 resolve opencode -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
-  --openai-compatible-model "$model" --openai-compatible-base-url "$base_url" >/tmp/vb-opencode.json
+  --openai-compatible "$base_url" >/tmp/vb-opencode.json
+resolve opencode-legacy -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
+  --openai-compatible-model "$model" --openai-compatible-base-url "$base_url" \
+  >/tmp/vb-opencode-legacy.json
 
 uv run --quiet python - <<'PY'
 import asyncio, json, sys, tempfile
@@ -119,6 +122,7 @@ assert row.kwargs == {"config": {"enabledPlugins": {"vaadin-agent-tools@skills-d
 # endpoint host in the allowlist, the provider block OpenCode reads.
 opencode = load("opencode")
 [row] = opencode.agents
+assert load("opencode-legacy").agents == opencode.agents
 # `-a module:Class` lands in name; the factory resolves it as an import path.
 assert row.name == "vaadinbench_agents:PreinstalledOpenCode", (row.name, row.import_path)
 assert row.model_name == "openai-compatible/Qwen3.8-27B-UD-Q5_K_XL-MTP"
@@ -179,13 +183,16 @@ fails() { # label, expected text, args...
   fi
   printf '%s\n' "$out" | grep -q "$want" || { echo "$label: output lacks '$want':" >&2; echo "$out" >&2; exit 1; }
 }
-fails half-pair "must be used together" -c vanilla -m "$model" --openai-compatible-model "$model"
+fails missing-url "requires --openai-compatible" -c vanilla -m "$model" --openai-compatible-model "$model"
+fails missing-model "requires exactly one explicit -m" -c vanilla --openai-compatible "$base_url"
+fails multiple-models "requires exactly one explicit -m" -c vanilla -m "$model,other" --openai-compatible "$base_url"
+fails model-glob "requires exactly one explicit -m" -c vanilla -m 'Qwen*' --openai-compatible "$base_url"
 fails plugins-are-claude-only "no matching agent or model, skipped" \
-  -c vaadin-skills-mcp-tools -m "$model" --openai-compatible-model "$model" --openai-compatible-base-url "$base_url"
+  -c vaadin-skills-mcp-tools -m "$model" --openai-compatible "$base_url"
 fails unknown-model "no model matches 'nosuch'" -m nosuch
 fails unknown-condition "no condition matches 'vaadin-skill'" -c vaadin-skill
 fails default-narrowed "runs everything" --default -m haiku
-fails bad-url "absolute http(s) URL" -m x --openai-compatible-model x --openai-compatible-base-url model-host:8080
+fails bad-url "absolute http(s) URL" -m x --openai-compatible model-host:8080
 
 # Several runs started from one fresh clone all miss the skills cache for the
 # same commit and populate it at once. Driven concurrently against a local

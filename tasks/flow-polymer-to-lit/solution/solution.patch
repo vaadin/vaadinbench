@@ -766,7 +766,7 @@ diff -ruN baseline-nodel/src/main/java/org/vaadin/samuli/InfiniteGrid.java solve
 diff -ruN baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js solved/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js
 --- baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js	1970-01-01 00:00:00.000000000 +0000
 +++ solved/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js	2026-09-03 05:24:02.404685241 +0000
-@@ -0,0 +1,518 @@
+@@ -0,0 +1,519 @@
 +import {LitElement, html} from 'lit';
 +
 +class InfiniteGrid extends LitElement {
@@ -1070,23 +1070,24 @@ diff -ruN baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infi
 +  }
 +
 +  clearCellAndAskContentFromServer(cell, ask) {
-+      if (cell.x < 0 ||
-+          cell.parentNode.y < 0 ||
-+          cell.x >= this.dimensions.cellCountX ||
-+          cell.parentNode.y >= this.dimensions.cellCountY) {
-+          return;
-+      }
-+
++      cell.y = cell.parentNode.y;
++      const inRange = cell.x >= 0 && cell.y >= 0 &&
++          cell.x < this.dimensions.cellCountX && cell.y < this.dimensions.cellCountY;
++      cell.style.visibility = inRange ? '' : 'hidden';
 +      if (this.domTemplate == null) {
-+          for (let i = 0; i < cell.childNodes.length; i++) {
-+              cell.removeChild(cell.childNodes[i]);
++          // Components moved out of storage still belong to the server-side
++          // storage container. Release them before recycling their DOM cell.
++          for (const child of cell.children) {
++              if (child.id && child.id.startsWith('id')) {
++                  this.$server.removeStorageComponentById(child.id);
++              }
 +          }
-+          ask.push(cell.x+"_"+cell.parentNode.y);
++          this.clearChildren(cell);
++          if (inRange) ask.push(cell.x + "_" + cell.y);
 +      } else {
-+          for(let i = 0; i < cell.childNodes.length; i++) {
-+              var child = cell.childNodes[i];
++          for (const child of cell.children) {
 +              child.x = cell.x;
-+              child.y = cell.parentNode.y;
++              child.y = cell.y;
 +          }
 +      }
 +  }

@@ -15,6 +15,7 @@ import org.vaadin.samuli.InfiniteGrid;
  * frozen row and one frozen column, cell content generated on the server, and
  * buttons that change the grid after it has rendered.
  */
+@com.vaadin.flow.component.dependency.JsModule("./vb-lit-probe.js")
 @Route("vb-grid")
 public class GridView extends Div {
 

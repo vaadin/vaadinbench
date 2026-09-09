@@ -766,7 +766,7 @@ diff -ruN baseline-nodel/src/main/java/org/vaadin/samuli/InfiniteGrid.java solve
 diff -ruN baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js solved/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js
 --- baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js	1970-01-01 00:00:00.000000000 +0000
 +++ solved/src/main/resources/META-INF/resources/frontend/src/infinite-grid.js	2026-09-03 05:24:02.404685241 +0000
-@@ -0,0 +1,519 @@
+@@ -0,0 +1,521 @@
 +import {LitElement, html} from 'lit';
 +
 +class InfiniteGrid extends LitElement {
@@ -993,7 +993,9 @@ diff -ruN baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infi
 +              cell.id = "cid"+coord;
 +              cell.x = x;
 +              cell.y = row.y;
-+              ask.push(coord);
++              const inRange = x < this.dimensions.cellCountX && y < this.dimensions.cellCountY;
++              cell.style.visibility = inRange ? '' : 'hidden';
++              if (inRange) ask.push(coord);
 +              cell.classList.add('cell');
 +
 +              if (x < this.frozenColumns) {
@@ -1005,7 +1007,7 @@ diff -ruN baseline-nodel/src/main/resources/META-INF/resources/frontend/src/infi
 +              row.appendChild(cell);
 +              cell.style.left = (x*this.cellWidth)+"px";
 +
-+              if(this.domTemplate != null) {
++              if(this.domTemplate != null && inRange) {
 +                  var template = this.createElementFromString(this.domTemplate);
 +                  template.x = cell.x;
 +                  template.y = cell.y;

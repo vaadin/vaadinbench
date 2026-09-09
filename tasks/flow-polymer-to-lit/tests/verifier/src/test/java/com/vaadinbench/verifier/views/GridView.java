@@ -48,8 +48,12 @@ public class GridView extends Div {
         });
         refresh.setId("refresh");
         NativeButton shrink = new NativeButton("Shrink",
-                e -> grid.setItemCount(5, 5));
+                e -> { generation.incrementAndGet(); grid.setItemCount(5, 5); });
         shrink.setId("shrink");
+        NativeButton empty = new NativeButton("Empty", e -> grid.setItemCount(0, 0));
+        empty.setId("empty");
+        NativeButton grow = new NativeButton("Grow", e -> grid.setItemCount(100, 100));
+        grow.setId("grow");
         NativeButton resize = new NativeButton("Resize",
                 e -> grid.setCellSize(150, 20));
         resize.setId("resize");
@@ -65,6 +69,6 @@ public class GridView extends Div {
         noBuffer.setId("no-buffer");
 
         setSizeFull();
-        add(refresh, shrink, resize, freeze, noBuffer, grid);
+        add(refresh, shrink, empty, grow, resize, freeze, noBuffer, grid);
     }
 }

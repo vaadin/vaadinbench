@@ -119,6 +119,12 @@ class InfiniteGridVerifierTest {
         grid.removeStorageComponentById("id1_2");
         grid.cleanStorage();
 
+        Set<String> callbacks = Arrays.stream(InfiniteGrid.class.getMethods())
+                .filter(m -> m.isAnnotationPresent(com.vaadin.flow.component.ClientCallable.class))
+                .map(java.lang.reflect.Method::getName).collect(Collectors.toSet());
+        assertTrue(callbacks.containsAll(Set.of("getContent", "removeStorageComponentById", "cleanStorage")),
+                "The public client-callable protocol must remain available: " + callbacks);
+
         // The three Vaadin 14 methods were replaced, not supplemented: the
         // calls above compile just as well against a class that kept them
         // beside the new API, so their absence is checked by name.

@@ -27,7 +27,7 @@
 #
 # The base below is the digest the base-image workflow wrote when it last
 # published; the workflow rebuilds this image on top of the base it has just built.
-ARG BASE_IMAGE=ghcr.io/vaadin/vaadinbench-base@sha256:cf4c722e1fad786fb018072190d9dac9019e23d525977f323d1649ebdf56e1a1
+ARG BASE_IMAGE=ghcr.io/vaadin/vaadinbench-base@sha256:aa0bba45861b875745428b746bae90c09ad2333ed51b7a9691a579341270b70d
 FROM ${BASE_IMAGE}
 
 # Claude Code runs with background tasks enabled and may shell out to `ps`. The
@@ -40,7 +40,8 @@ RUN apt-get update \
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Claude Code, at a pinned release, through Anthropic's standalone installer.
-ARG CLAUDE_CODE_VERSION=2.1.235
+# Includes Fable 5.1 support and its prompt-cache fixes.
+ARG CLAUDE_CODE_VERSION=2.1.266
 RUN curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh \
         | bash -s -- "$CLAUDE_CODE_VERSION" \
     && ln -sf /root/.local/bin/claude /usr/local/bin/claude \
@@ -55,7 +56,8 @@ RUN curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh \
 # Verify what the image ended up with:
 #   docker run --rm "ghcr.io/vaadin/vaadinbench-agents:$(cat base/stack-version.txt)" \
 #       codex --version
-ARG CODEX_VERSION=0.152.1
+# Keep Astra support in the container, not just in the host CLI.
+ARG CODEX_VERSION=0.153.4
 RUN curl -fsSL https://chatgpt.com/codex/install.sh -o /tmp/codex-install.sh \
     && CODEX_NON_INTERACTIVE=1 sh /tmp/codex-install.sh --release "$CODEX_VERSION" \
     && rm -f /tmp/codex-install.sh \

@@ -29,7 +29,7 @@ class BuildGateTest(unittest.TestCase):
             if available:
                 (result / "available").touch()
             for name, body in {"sleep": "exit 0", "curl": "exit 0",
-                               "find": "echo cached-playwright.jar",
+                               "cat": 'case "$1" in */classpath.txt) echo cached-playwright.jar ;; *) exec /bin/cat "$@" ;; esac',
                                "java": f"exit {browser_exit}"}.items():
                 script = bin_dir / name
                 script.write_text("#!/bin/sh\n" + body + "\n")

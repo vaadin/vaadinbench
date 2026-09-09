@@ -36,6 +36,8 @@ resolve() {
 
 resolve claude -c vaadin-skills-mcp-tools -m haiku -t flow-new-view -k 1 >/tmp/vb-claude.json
 resolve codex -c vaadin-mcp-java -m 'openai/*' -t flow-new-view -k 2 -n 3 >/tmp/vb-codex.json
+resolve fable -c vanilla -m fable -t flow-employee-list-strict -k 1 >/tmp/vb-fable.json
+resolve claude-all -c vanilla -m 'anthropic/*' -t flow-employee-list-strict -k 1 >/tmp/vb-claude-all.json
 resolve astra -c vanilla -m astra -t flow-employee-list-strict -k 1 >/tmp/vb-astra.json
 resolve vanilla -c vanilla -m sonnet -t flow-grid-filtering --keep-job-binaries >/tmp/vb-vanilla.json
 resolve opencode -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
@@ -83,6 +85,19 @@ for row in codex.agents:
     assert row.kwargs == {}
     assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai.com", "mcp.vaadin.com"]
     assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs-java/docs"]
+
+# Fable uses Claude Code and the Anthropic allowlist, with no Codex settings.
+fable = load("fable")
+[row] = fable.agents
+assert fable.n_attempts == 1
+assert row.name == "claude-code" and row.model_name == "anthropic/claude-fable-5-1"
+assert row.skills == [] and row.mcp_servers == []
+assert row.extra_allowed_hosts == ["api.anthropic.com"]
+assert row.kwargs == {"config": {"enabledPlugins": {"vaadin-agent-tools@skills-dir": False}}}
+assert [r.model_name for r in load("claude-all").agents] == [
+    "anthropic/claude-haiku-4-5-20251001", "anthropic/claude-sonnet-5",
+    "anthropic/claude-opus-5", "anthropic/claude-fable-5-1",
+]
 
 # The short Astra selector resolves to exactly one Codex agent.
 astra = load("astra")

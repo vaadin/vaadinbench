@@ -70,6 +70,7 @@ AGENTS: list[Agent] = [
             "anthropic/claude-haiku-4-5-20251001",
             "anthropic/claude-sonnet-5",
             "anthropic/claude-opus-5",
+            "anthropic/claude-fable-5-1",
         ),
         hosts=("api.anthropic.com",),
         loads_claude_plugins=True,

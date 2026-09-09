@@ -293,8 +293,10 @@ jobs:
                 refs="$refs $image@$(cat "$digest")"
               done
             fi
+            commit_tag='${{ github.sha }}'
+            [[ "$name" != migration_* ]] || commit_tag="$commit_tag-migration"
             docker buildx imagetools create \
-              -t "$image:$version" -t "$image:${{ github.sha }}-$name" $refs
+              -t "$image:$version" -t "$image:$commit_tag" $refs
             list=$(docker buildx imagetools inspect "$image:$version" \
                    --format '{{.Manifest.Digest}}')
             echo "$(echo "$name" | tr '[:lower:]' '[:upper:]')_IMAGE=$image" >>"$GITHUB_ENV"

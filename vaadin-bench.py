@@ -97,9 +97,9 @@ def openai_compatible_agent(model: str, base_url: str) -> Agent:
     """
     parsed = urllib.parse.urlsplit(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        sys.exit("vaadin-bench: --openai-compatible-base-url must be an absolute http(s) URL")
+        sys.exit("vaadin-bench: --openai-compatible must be an absolute http(s) URL")
     if parsed.query or parsed.fragment:
-        sys.exit("vaadin-bench: --openai-compatible-base-url must not contain a query or fragment")
+        sys.exit("vaadin-bench: --openai-compatible must not contain a query or fragment")
     provider = "openai-compatible"
     model_id = model.removeprefix(provider + "/")
     base = base_url.rstrip("/")
@@ -366,9 +366,8 @@ Examples
   uv run vaadin-bench.py -c vanilla -m haiku -t flow-new-view -k 1
   uv run vaadin-bench.py -c 'vaadin-skills*' -m sonnet,opus -k 3
   uv run vaadin-bench.py -m luna -k 5                 # Codex, in every condition
-  uv run vaadin-bench.py -c vanilla -m Qwen3.8 -t flow-new-view -k 1 \\
-    --openai-compatible-model Qwen3.8-27B-UD-Q5_K_XL-MTP \\
-    --openai-compatible-base-url http://model-host:8080/v1
+  uv run vaadin-bench.py -c vanilla -m Qwen3.8-27B-UD-Q5_K_XL-MTP \\
+    -t flow-new-view -k 1 --openai-compatible http://model-host:8080/v1
   uv run vaadin-bench.py -t flow-grid-filtering -- --upload --private
 """
 
@@ -385,9 +384,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     sel.add_argument("-m", "--model", action="append", default=[], metavar="NAME", help="models to run, matched loosely (default: all)")
     sel.add_argument("-t", "--task", action="append", default=[], metavar="NAME", help="tasks to run (default: all)")
     sel.add_argument("--default", "--all", action="store_true", help="the whole set: every condition, agent, model and task")
-    oc = parser.add_argument_group("OpenAI-compatible model (opt-in; both options are required)")
-    oc.add_argument("--openai-compatible-model", metavar="NAME", help="API model ID; runs through OpenCode")
-    oc.add_argument("--openai-compatible-base-url", metavar="URL", help="API root, normally ending in /v1")
+    oc = parser.add_argument_group("OpenAI-compatible model (opt-in; runs through OpenCode)")
+    oc.add_argument(
+        "--openai-compatible",
+        "--openai-compatible-base-url",
+        dest="openai_compatible_base_url",
+        metavar="URL",
+        help="API root, normally ending in /v1; model ID is inferred from the sole -m",
+    )
+    oc.add_argument(
+        "--openai-compatible-model",
+        metavar="NAME",
+        help="API model ID (legacy explicit form; requires --openai-compatible)",
+    )
     run = parser.add_argument_group("run")
     run.add_argument("-k", "--attempts", "--iterations", type=int, default=DEFAULT_ATTEMPTS, metavar="N", help=f"attempts per trial (default: {DEFAULT_ATTEMPTS})")
     run.add_argument("-n", "--concurrent", type=int, metavar="N", help="concurrent trials (Harbor's default: 4)")
@@ -409,9 +418,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         if args.passthrough:
             parser.error(f"unrecognized arguments: {' '.join(args.passthrough)}")
 
-    if bool(args.openai_compatible_model) != bool(args.openai_compatible_base_url):
-        parser.error("--openai-compatible-model and --openai-compatible-base-url must be used together")
-    if args.default and (args.condition or args.model or args.task or args.openai_compatible_model):
+    args.openai_compatible_model_inferred = False
+    if args.openai_compatible_model and not args.openai_compatible_base_url:
+        parser.error("--openai-compatible-model requires --openai-compatible")
+    if args.openai_compatible_base_url and not args.openai_compatible_model:
+        selected_models = split_patterns(args.model)
+        if len(selected_models) != 1 or any(c in selected_models[0] for c in "*?["):
+            parser.error("--openai-compatible requires exactly one explicit -m model ID")
+        args.openai_compatible_model = selected_models[0]
+        args.openai_compatible_model_inferred = True
+    if args.default and (
+        args.condition or args.model or args.task or args.openai_compatible_base_url
+    ):
         parser.error("--default runs everything; drop it to select conditions, models or tasks")
     if args.attempts < 1:
         parser.error(f"--attempts wants a positive integer, got {args.attempts}")
@@ -427,7 +445,10 @@ def main(argv: list[str]) -> int:
         return 0
     args = parse_args(argv)
 
-    agents = list(AGENTS)
+    # The shorthand's -m is an API model ID, not a loose selector for the built-in
+    # agents. Without this scope, a local model called e.g. "luna" also selects
+    # Codex's openai/gpt-5.6-luna row and can unexpectedly invoke a paid API.
+    agents = [] if args.openai_compatible_model_inferred else list(AGENTS)
     if args.openai_compatible_model:
         agents.append(openai_compatible_agent(args.openai_compatible_model, args.openai_compatible_base_url))
 

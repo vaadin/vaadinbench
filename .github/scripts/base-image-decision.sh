@@ -48,6 +48,7 @@ set -uo pipefail
 
 event=${1:-}
 revision=${2:-}
+stack=${3:-modern}
 
 # The paths whose content the base image reads, and the one path under them that
 # only the agents image reads. These mirror the trigger paths of
@@ -66,7 +67,7 @@ is_base_input() {
     base/* | .dockerignore | .github/workflows/base-image.yml) return 0 ;;
     tasks/*/task.toml | tasks/*/tests/test.sh) return 0 ;;
     tasks/*/environment/app/* | tasks/*/tests/protected/* | \
-        tasks/*/tests/verifier/* | tasks/*/solution/*) return 0 ;;
+        tasks/*/tests/verifier/* | tasks/*/tests/expected/* | tasks/*/solution/*) return 0 ;;
     esac
     return 1
 }
@@ -98,7 +99,11 @@ esac
 # one the task verifiers are graded on. Only a digest is reusable: before the
 # first publication this line carries the bootstrap tag, which names no image
 # that exists yet.
-published=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
+if [ "$stack" = migration ]; then
+    published=$(cat base/migration-base-ref.txt)
+else
+    published=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
+fi
 case $published in
 *@sha256:[0-9a-f]*) ;;
 *) rebuild "base/agents.Dockerfile names ${published:-nothing} — no published base to reuse" ;;
@@ -113,6 +118,14 @@ changed=$(git diff --name-only "$revision" HEAD) \
 
 while IFS= read -r path; do
     [ -n "$path" ] || continue
+    case "$path" in
+        tasks/*/task.toml) ;; # Stack membership changes can affect both images.
+        tasks/*/*)
+            task=${path#tasks/}; task=${task%%/*}
+            task_stack=$(sed -n 's/^image_stack *= *"\(.*\)"/\1/p' "tasks/$task/task.toml" 2>/dev/null)
+            [ "${task_stack:-modern}" = "$stack" ] || continue
+            ;;
+    esac
     if ! is_agents_only "$path" && is_base_input "$path"; then
         rebuild "$path changed since $published was built from ${revision:0:12}"
     fi

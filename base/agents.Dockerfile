@@ -49,8 +49,7 @@ RUN curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh \
 
 # Codex, at a pinned release, through OpenAI's standalone installer. The
 # standalone package carries the complete runtime — the Code Mode host, bundled
-# ripgrep — without needing a Node on the PATH (the base keeps its own off it, for
-# the tasks with a frontend build); the host check catches an
+# ripgrep — while keeping Node out of the image; the host check catches an
 # incomplete installation before a run spends tokens on it.
 #
 # Verify what the image ended up with:

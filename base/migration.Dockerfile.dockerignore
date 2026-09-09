@@ -20,6 +20,3 @@
 **/frontend/generated/
 **/vite.generated.ts
 **/.DS_Store
-
-# The migration task has its own image and warm-up.
-tasks/flow-polymer-to-lit/

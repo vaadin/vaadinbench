@@ -56,7 +56,7 @@ revision=${2:-}
 # be added there and silently skipped here.
 is_agents_only() {
     case $1 in
-    base/agents.Dockerfile) return 0 ;;
+    base/agents.Dockerfile | base/agent-bin/*) return 0 ;;
     esac
     return 1
 }

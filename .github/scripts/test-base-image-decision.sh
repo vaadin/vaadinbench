@@ -54,12 +54,13 @@ report() { # $1 label, $2 wanted first word, $3 what was printed
 # $1 the ARG BASE_IMAGE= value agents.Dockerfile should carry
 new_repo() {
     local base_ref=$1 dir="$scratch/repo-$RANDOM$RANDOM"
-    mkdir -p "$dir"/{base,.github/workflows} \
+    mkdir -p "$dir"/{base/agent-bin,.github/workflows} \
         "$dir"/tasks/flow-new-view/{environment/app,tests/{protected,verifier,expected}}
     (
         cd "$dir"
         printf 'FROM scratch\n' >base/Dockerfile
         printf 'ARG BASE_IMAGE=%s\nFROM ${BASE_IMAGE}\n' "$base_ref" >base/agents.Dockerfile
+        printf 'wrapper\n' >base/agent-bin/mvn
         printf 'warm\n' >base/warmup.sh
         printf '\n' >.dockerignore
         printf 'name: base-image\n' >.github/workflows/base-image.yml
@@ -111,8 +112,10 @@ check "verifier source"    rebuild tasks/flow-new-view/tests/verifier/Verify.jav
 check "recorded project"   rebuild tasks/flow-new-view/tests/expected/pom.xml
 check "verifier entry"     rebuild tasks/flow-new-view/tests/test.sh
 
-# The agents Dockerfile alone, and a change to neither, reuse it.
+# Inputs used only by the agents image, and a change to neither image, reuse the
+# published base.
 check "agents Dockerfile"  reuse   base/agents.Dockerfile
+check "agent command wrapper" reuse base/agent-bin/mvn
 check "nothing relevant"   reuse   README.md
 check "nothing at all"     reuse   ""
 check "agents on a PR"     reuse   base/agents.Dockerfile pull_request

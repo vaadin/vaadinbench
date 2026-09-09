@@ -62,6 +62,7 @@ plant() {
     printf 'snapshot\n' >"$1/$OPENCODE_PATH/xdg-data/opencode/snapshot/data"
     printf '[]\n' >"$1/agent/trajectory.json"
     printf 'OpenCode log\n' >"$1/agent/opencode.txt"
+    printf 'Java runtime log\n' >"$1/agent/java-runtime.log"
 }
 
 # $1 case label, $2 the directory named on the command line, $3 where the copy
@@ -84,6 +85,7 @@ prune_case() {
             test -d "$at/${PLATFORM_PATH%/platform}"
         assert "$label keeps the trajectory" test -f "$at/agent/trajectory.json"
         assert "$label keeps the OpenCode log" test -f "$at/agent/opencode.txt"
+        assert "$label keeps the Java runtime log" test -f "$at/agent/java-runtime.log"
     else
         assert "$label keeps the copy" test -f "$at/$PLATFORM_PATH/vaadin-agent-tools"
         assert "$label keeps OpenCode state" \

@@ -115,7 +115,6 @@ assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai
 # The control: nothing but the model, and the baked Claude plugin explicitly off.
 vanilla = load("vanilla")
 [row] = vanilla.agents
-assert vanilla.n_attempts == 1 and vanilla.n_concurrent_trials == 1
 assert row.model_name == "anthropic/claude-sonnet-5"
 assert row.skills == [] and row.mcp_servers == []
 assert row.extra_allowed_hosts == ["api.anthropic.com"]

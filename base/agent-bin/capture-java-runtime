@@ -30,11 +30,54 @@ started=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
     printf '=====\n'
 } >>"$log_file"
 
-set -o pipefail
-"$real_command" "$@" 2>&1 | tee -a "$log_file"
-status=${PIPESTATUS[0]}
+pipe_dir=$(mktemp -d "${TMPDIR:-/tmp}/vaadinbench-java-log.XXXXXX") || \
+    exec "$real_command" "$@"
+pipe=$pipe_dir/output
+if ! mkfifo "$pipe"; then
+    rmdir "$pipe_dir" 2>/dev/null || true
+    exec "$real_command" "$@"
+fi
 
-finished=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-printf '===== %s end pid=%s exit=%s =====\n' \
-    "$finished" "$$" "$status" >>"$log_file"
-exit "$status"
+# A background caller sends signals to this wrapper's PID. Run the command in
+# its own process group so the wrapper can forward that signal to the JVM and
+# anything it started (for example Spring Boot's child process), while tee stays
+# alive long enough to drain the final output from the pipe.
+tee -a "$log_file" <"$pipe" &
+tee_pid=$!
+set -m
+"$real_command" "$@" >"$pipe" 2>&1 &
+command_pid=$!
+set +m
+
+finish() {
+    local status=$1
+    wait "$tee_pid" 2>/dev/null || true
+    rm -f "$pipe"
+    rmdir "$pipe_dir" 2>/dev/null || true
+
+    local finished
+    finished=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    printf '===== %s end pid=%s exit=%s =====\n' \
+        "$finished" "$$" "$status" >>"$log_file"
+    exit "$status"
+}
+
+terminate() {
+    local signal=$1 fallback_status=$2 status
+    trap - HUP INT TERM
+    kill -s "$signal" -- "-$command_pid" 2>/dev/null \
+        || kill -s "$signal" "$command_pid" 2>/dev/null \
+        || true
+    wait "$command_pid" 2>/dev/null
+    status=$?
+    [[ $status -eq 0 ]] && status=$fallback_status
+    finish "$status"
+}
+
+trap 'terminate HUP 129' HUP
+trap 'terminate INT 130' INT
+trap 'terminate TERM 143' TERM
+
+wait "$command_pid"
+status=$?
+finish "$status"

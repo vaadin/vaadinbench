@@ -65,6 +65,33 @@ done
 assert "writes output before the process exits" grep -q '^available-before-exit$' "$WORK/logs/java-runtime.log"
 wait "$slow_pid"
 
+cat >"$WORK/bin/long-java" <<'EOF'
+#!/bin/bash
+trap 'printf "java-terminated\n"; exit 42' TERM
+sleep 30 &
+child=$!
+printf '%s\n' "$child" >"$1"
+printf 'java-started\n'
+wait "$child"
+EOF
+chmod +x "$WORK/bin/long-java"
+VAADINBENCH_AGENT_LOG_DIR="$WORK/logs" \
+    bash "$CAPTURE" "$WORK/bin/long-java" "$WORK/child.pid" \
+    >"$WORK/console-terminated" 2>&1 &
+wrapper_pid=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [[ -s $WORK/child.pid ]] && break
+    sleep 0.02
+done
+kill -TERM "$wrapper_pid"
+status=0
+wait "$wrapper_pid" || status=$?
+child_pid=$(cat "$WORK/child.pid")
+assert "returns the terminated command status" test "$status" -eq 42
+assert "forwards termination to the Java command" grep -q '^java-terminated$' "$WORK/logs/java-runtime.log"
+assert "terminates descendants with the Java command" sh -c '! kill -0 "$1" 2>/dev/null' _ "$child_pid"
+assert "records the terminated command status" grep -q 'end pid=.*exit=42' "$WORK/logs/java-runtime.log"
+
 status=0
 VAADINBENCH_AGENT_LOG_DIR="$WORK/no-log-mount" \
     bash "$CAPTURE" "$WORK/bin/fake-java" fallback 3 >"$WORK/console-fallback" 2>&1 \

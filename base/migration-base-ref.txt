@@ -1,1 +1,0 @@
-ghcr.io/vaadin/vaadinbench-base:24.8.17-jdk25

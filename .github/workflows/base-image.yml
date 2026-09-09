@@ -111,7 +111,7 @@ jobs:
             echo "reuse=${decision#reuse }" >>"$GITHUB_OUTPUT"
           fi
           echo "$decision" >>"$GITHUB_STEP_SUMMARY"
-          pinned=$(cat base/migration-base-ref.txt)
+          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' tasks/flow-polymer-to-lit/tests/Dockerfile)
           revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
           decision=$(bash .github/scripts/base-image-decision.sh "${{ github.event_name }}" "$revision" migration)
           if [ "$decision" = rebuild ]; then
@@ -365,7 +365,6 @@ jobs:
               "$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST" \
               "$MIGRATION_AGENTS_IMAGE@$MIGRATION_AGENTS_DIGEST"
             sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$base_ref|" base/agents.Dockerfile
-            echo "$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST" >base/migration-base-ref.txt
             if git diff --quiet; then
               echo "already pinned to $base_ref and $agents_ref" | tee -a "$GITHUB_STEP_SUMMARY"
               exit 0

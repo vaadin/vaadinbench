@@ -101,7 +101,7 @@ esac
 # first publication this line carries the bootstrap tag, which names no image
 # that exists yet.
 if [ "$stack" = migration ]; then
-    published=$(cat base/migration-base-ref.txt)
+    published=$(sed -n 's/^ARG BASE_IMAGE=//p' tasks/flow-polymer-to-lit/tests/Dockerfile)
 else
     published=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
 fi

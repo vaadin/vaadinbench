@@ -30,6 +30,7 @@
 # Prints the two references on success, base first.
 
 set -uo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/task-images.sh"
 
 base_image=${1:?the base image the verifier Dockerfiles must name}
 agents_image=${2:?the agents image the environment Dockerfiles must name}
@@ -102,7 +103,7 @@ for stack in modern migration; do
     fi
     environments=""; verifiers=""
     for task in tasks/*; do
-        declared_stack=$(sed -n 's/^image_stack *= *"\(.*\)"/\1/p' "$task/task.toml")
+        declared_stack=$(task_image_stack "$task")
         [ "${declared_stack:-modern}" = "$stack" ] || continue
         environments="$environments $task/environment/Dockerfile"
         verifiers="$verifiers $task/tests/Dockerfile"

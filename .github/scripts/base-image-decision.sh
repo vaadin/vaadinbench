@@ -45,6 +45,7 @@
 # workflow's own trigger paths without restating them.
 
 set -uo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/task-images.sh"
 
 event=${1:-}
 revision=${2:-}
@@ -64,7 +65,7 @@ is_agents_only() {
 
 is_base_input() {
     case $1 in
-    base/* | .dockerignore | .github/workflows/base-image.yml) return 0 ;;
+    base/* | .dockerignore | .github/workflows/base-image.yml | .github/scripts/task-images.sh) return 0 ;;
     tasks/*/task.toml | tasks/*/tests/test.sh) return 0 ;;
     tasks/*/environment/app/* | tasks/*/tests/protected/* | \
         tasks/*/tests/verifier/* | tasks/*/tests/expected/* | tasks/*/solution/*) return 0 ;;
@@ -125,7 +126,7 @@ while IFS= read -r path; do
         tasks/*/task.toml) ;; # Stack membership changes can affect both images.
         tasks/*/*)
             task=${path#tasks/}; task=${task%%/*}
-            task_stack=$(sed -n 's/^image_stack *= *"\(.*\)"/\1/p' "tasks/$task/task.toml" 2>/dev/null)
+            task_stack=$(task_image_stack "tasks/$task")
             [ "${task_stack:-modern}" = "$stack" ] || continue
             ;;
     esac

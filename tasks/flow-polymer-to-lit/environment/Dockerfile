@@ -24,8 +24,9 @@ COPY --from=baseline /root/.m2/repository /opt/vaadinbench/m2-v14
 COPY --from=baseline /baseline /opt/vaadinbench/baseline-v14
 COPY v14-settings.xml /opt/vaadinbench/v14-settings.xml
 COPY prepare-v14-pom.py /opt/vaadinbench/prepare-v14-pom.py
-COPY vaadin14-mvn vaadin14-demo vaadin24-prepare /usr/local/bin/
-RUN chmod +x /usr/local/bin/vaadin14-mvn /usr/local/bin/vaadin14-demo /usr/local/bin/vaadin24-prepare
+COPY v14-mvn.sh /opt/vaadinbench/v14-mvn.sh
+COPY vaadin14-demo vaadin24-prepare /usr/local/bin/
+RUN chmod +x /usr/local/bin/vaadin14-demo /usr/local/bin/vaadin24-prepare
 
 # The app is the upstream add-on at a pinned commit — the last one before its
 # author's own Vaadin 24 migration — not a copy vendored into this repository.
@@ -72,7 +73,7 @@ RUN test -d "$TOOLCHAIN/node_modules" && test -f "$TOOLCHAIN/package.json"
 ENV PATH="/opt/node/bin:${PATH}"
 
 # The original project can compile offline with its own Java 8 toolchain.
-RUN vaadin14-mvn test-compile && rm -rf target
+RUN bash /opt/vaadinbench/v14-mvn.sh test-compile && rm -rf target
 
 # Exclude generated output without changing any tracked upstream file.
 RUN printf '%s\n' .vaadinbench-v14-pom.xml target/ node_modules/ src/main/frontend/generated/ \

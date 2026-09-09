@@ -43,6 +43,7 @@ on:
     paths:
       - base/**
       - .dockerignore
+      - .github/scripts/task-images.sh
       - .github/workflows/base-image.yml
       - tasks/*/task.toml
       - tasks/*/environment/app/**
@@ -208,7 +209,7 @@ jobs:
           if [ -n "$reuse" ]; then
             migration_ref=$reuse
           else
-            build migration_base "$BASE" base/migration.Dockerfile --build-arg IMAGE_STACK=migration
+            build migration_base "$BASE" base/migration.Dockerfile
             migration_ref="$BASE@$(cat /tmp/digests/migration_base-${{ matrix.arch }})"
           fi
           build migration_agents "$AGENTS" base/agents.Dockerfile --build-arg "BASE_IMAGE=$migration_ref"
@@ -359,16 +360,10 @@ jobs:
           for attempt in 1 2 3; do
             git fetch --quiet origin main
             git checkout --quiet -B pin origin/main
-            for task in tasks/*; do
-              if grep -q '^image_stack = "migration"' "$task/task.toml"; then
-                env_ref="$MIGRATION_AGENTS_IMAGE@$MIGRATION_AGENTS_DIGEST"
-                test_ref="$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST"
-              else
-                env_ref=$agents_ref; test_ref=$base_ref
-              fi
-              sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$env_ref|" "$task/environment/Dockerfile"
-              sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$test_ref|" "$task/tests/Dockerfile"
-            done
+            source .github/scripts/task-images.sh
+            pin_task_images "$base_ref" "$agents_ref" \
+              "$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST" \
+              "$MIGRATION_AGENTS_IMAGE@$MIGRATION_AGENTS_DIGEST"
             sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$base_ref|" base/agents.Dockerfile
             echo "$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST" >base/migration-base-ref.txt
             if git diff --quiet; then

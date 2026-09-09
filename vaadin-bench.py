@@ -418,6 +418,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         if args.passthrough:
             parser.error(f"unrecognized arguments: {' '.join(args.passthrough)}")
 
+    args.openai_compatible_model_inferred = False
     if args.openai_compatible_model and not args.openai_compatible_base_url:
         parser.error("--openai-compatible-model requires --openai-compatible")
     if args.openai_compatible_base_url and not args.openai_compatible_model:
@@ -425,6 +426,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         if len(selected_models) != 1 or any(c in selected_models[0] for c in "*?["):
             parser.error("--openai-compatible requires exactly one explicit -m model ID")
         args.openai_compatible_model = selected_models[0]
+        args.openai_compatible_model_inferred = True
     if args.default and (
         args.condition or args.model or args.task or args.openai_compatible_base_url
     ):
@@ -443,7 +445,10 @@ def main(argv: list[str]) -> int:
         return 0
     args = parse_args(argv)
 
-    agents = list(AGENTS)
+    # The shorthand's -m is an API model ID, not a loose selector for the built-in
+    # agents. Without this scope, a local model called e.g. "luna" also selects
+    # Codex's openai/gpt-5.6-luna row and can unexpectedly invoke a paid API.
+    agents = [] if args.openai_compatible_model_inferred else list(AGENTS)
     if args.openai_compatible_model:
         agents.append(openai_compatible_agent(args.openai_compatible_model, args.openai_compatible_base_url))
 

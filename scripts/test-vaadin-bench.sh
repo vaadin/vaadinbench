@@ -45,6 +45,8 @@ resolve opencode -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
 resolve opencode-legacy -c vaadin-skills-mcp -m "$model" -t flow-new-view -k 1 \
   --openai-compatible-model "$model" --openai-compatible-base-url "$base_url" \
   >/tmp/vb-opencode-legacy.json
+resolve opencode-name-collision -c vanilla -m luna -t flow-new-view -k 1 \
+  --openai-compatible "$base_url" >/tmp/vb-opencode-name-collision.json
 
 uv run --quiet python - <<'PY'
 import asyncio, json, sys, tempfile
@@ -142,6 +144,12 @@ assert row.kwargs == {
     }
 }, row.kwargs
 assert row.env == {"OPENAI_API_KEY": "${OPENAI_API_KEY:-local}", "OPENAI_BASE_URL": "http://127.0.0.1:8080/v1"}, row.env
+
+# The inferred API model name is scoped to OpenCode even if it also loosely
+# matches a built-in model. In particular, this must not schedule paid Codex.
+[collision] = load("opencode-name-collision").agents
+assert collision.name == "vaadinbench_agents:PreinstalledOpenCode"
+assert collision.model_name == "openai-compatible/luna"
 
 agent = AgentFactory.create_agent_from_config(row, Path(tempfile.mkdtemp(prefix="vaadin-bench-agent-test-")))
 assert isinstance(agent, PreinstalledOpenCode)

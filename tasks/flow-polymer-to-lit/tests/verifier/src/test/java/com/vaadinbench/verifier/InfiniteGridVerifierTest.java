@@ -145,6 +145,7 @@ class InfiniteGridVerifierTest {
     @DisplayName("getContent answers with one setContent call carrying the generated cells")
     void getContentAnswersWithSetContent() throws IOException {
         InfiniteGrid grid = attachedGrid();
+        grid.setItemCount(10, 10);
         grid.setHtmlGenerator((x, y) -> y == 4 ? null : x + ", " + y,
                 HTMLRenderingHints.NORMAL);
         flushClientCalls();
@@ -177,6 +178,7 @@ class InfiniteGridVerifierTest {
     @DisplayName("generated components are parked in the grid under the id of their cell")
     void componentGeneratorParksComponentsInTheGrid() {
         InfiniteGrid grid = attachedGrid();
+        grid.setItemCount(10, 10);
         Span first = new Span("first");
         Span second = new Span("second");
         Span[] next = { first };

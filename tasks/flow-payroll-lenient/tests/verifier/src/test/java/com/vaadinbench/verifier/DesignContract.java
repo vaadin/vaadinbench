@@ -69,7 +69,12 @@ public final class DesignContract {
             }
             JsonObject observation = JsonParser.parseString((String) locator.evaluate("""
                 e => {
-                  const b = e.getBoundingClientRect(), s = getComputedStyle(e);
+                  const b = e.getBoundingClientRect();
+                  // SideNavItem paints its public link/content parts inside the host.
+                  // Keep host geometry, but inspect the actual link and its paint chain.
+                  const target = e.localName === 'vaadin-side-nav-item'
+                    ? e.shadowRoot?.querySelector('[part~="link"]') || e : e;
+                  const s = getComputedStyle(target);
                   const range = document.createRange(); range.selectNodeContents(e);
                   const content = range.getBoundingClientRect();
                   // Compare painted sRGB, so translucent Lumo tokens and their opaque
@@ -77,7 +82,16 @@ public final class DesignContract {
                   const canvas=document.createElement('canvas'); canvas.width=canvas.height=1;
                   const paint=canvas.getContext('2d', {willReadFrequently:true});
                   const chain=[];
-                  for(let node=e; node; node=node.assignedSlot || node.parentElement || node.getRootNode().host) chain.push(node);
+                  for(let node=target; node; node=node.assignedSlot || node.parentElement || node.getRootNode().host) chain.push(node);
+                  const hasBackground = node => {
+                    paint.clearRect(0,0,1,1); paint.fillStyle=getComputedStyle(node).backgroundColor;
+                    paint.fillRect(0,0,1,1); return paint.getImageData(0,0,1,1).data[3] > 0;
+                  };
+                  // Radius belongs to the nearest painted layer within the item, never
+                  // to an unrelated ancestor such as the sidebar's background.
+                  const itemChain = chain.slice(0, chain.indexOf(e)+1);
+                  const surface = target === e ? e : itemChain.find(hasBackground) || target;
+                  const radius = getComputedStyle(surface);
                   const renderedColour = foreground => {
                     paint.clearRect(0,0,1,1); paint.fillStyle='#fff'; paint.fillRect(0,0,1,1);
                     for(const node of [...chain].reverse()) { paint.fillStyle=getComputedStyle(node).backgroundColor; paint.fillRect(0,0,1,1); }
@@ -87,9 +101,9 @@ public final class DesignContract {
                   };
                   return JSON.stringify({box:{x:b.x,y:b.y,width:b.width,height:b.height},contentX:content.x,
                     css:{fontSize:s.fontSize,fontWeight:s.fontWeight,color:renderedColour(true),backgroundColor:renderedColour(false),
-                      borderRadius:s.borderRadius,borderTopLeftRadius:s.borderTopLeftRadius,
-                      borderTopRightRadius:s.borderTopRightRadius,borderBottomLeftRadius:s.borderBottomLeftRadius,
-                      borderBottomRightRadius:s.borderBottomRightRadius}});
+                      borderRadius:radius.borderRadius,borderTopLeftRadius:radius.borderTopLeftRadius,
+                      borderTopRightRadius:radius.borderTopRightRadius,borderBottomLeftRadius:radius.borderBottomLeftRadius,
+                      borderBottomRightRadius:radius.borderBottomRightRadius}});
                 }
                 """)).getAsJsonObject();
             if (check.has("box")) for (var property : check.getAsJsonObject("box").entrySet()) {

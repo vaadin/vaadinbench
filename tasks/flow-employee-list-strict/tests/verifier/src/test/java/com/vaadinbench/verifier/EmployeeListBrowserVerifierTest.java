@@ -50,7 +50,14 @@ class EmployeeListBrowserVerifierTest {
         page.onPageError(errors::add);
         page.onConsoleMessage(m -> { if (m.type().equals("error")) errors.add(m.text()); });
         page.navigate("http://localhost:" + port + "/employees");
-        assertThat(id("employee-table")).isVisible();
+        try {
+            assertThat(id("employee-table")).isVisible();
+        } catch (AssertionError failure) {
+            String diagnostic = BrowserDiagnostics.startup(page);
+            try { Files.writeString(OUTPUT.resolve("startup-failure.txt"), diagnostic); }
+            catch (IOException error) { failure.addSuppressed(error); }
+            throw new AssertionError("Employee route did not become ready: " + diagnostic, failure);
+        }
         assertThat(row("e15")).hasCount(1);
         settle();
     }
@@ -151,7 +158,8 @@ class EmployeeListBrowserVerifierTest {
             assertArrayEquals(Arrays.copyOfRange(data,1,data.length), BrowserElements.texts(page,r));
         }
         select("e02");
-        assertThat(id("employee-detail").locator("h2")).hasText("Liam Johnson");
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Liam Johnson")).isVisible();
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Liam Johnson")).hasText("Liam Johnson");
         assertThat(id("employee-detail")).containsText("4 years 3 months in service");
         assertThat(id("employee-detail")).containsText("13 assigned tasks");
         String[] keys={"first-name","last-name","phone","email","dob"};
@@ -183,7 +191,8 @@ class EmployeeListBrowserVerifierTest {
         assertTrue(box(id("employee-table")).width < full-100,"Table narrows");
         select("e01");
         assertThat(row("e02")).hasAttribute("aria-selected","false");
-        assertThat(id("employee-detail").locator("h2")).hasText("Henry Thompson");
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Henry Thompson")).isVisible();
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Henry Thompson")).hasText("Henry Thompson");
         assertThat(input("first-name")).hasValue("Henry");
         assertEquals("Marketing",selectionValue("department"));
         assertEquals("Content strategist",selectionValue("job-title"));
@@ -205,16 +214,13 @@ class EmployeeListBrowserVerifierTest {
     }
 
     void noOverflow() {
-        assertTrue((Boolean)page.evaluate("() => document.documentElement.scrollWidth <= innerWidth+1 && document.body.scrollWidth <= innerWidth+1"),"Document horizontal overflow");
-        // Includes shadow DOM and internal scrollers; overflow:hidden is not permission to clip Name/Status.
-        assertTrue((Boolean)page.evaluate("""
-            () => { const walk = root => [...root.querySelectorAll('*')].every(e => {
-              const s=getComputedStyle(e); const b=e.getBoundingClientRect();
-              if (b.width && b.height && ['auto','scroll'].includes(s.overflowX) && e.scrollWidth>e.clientWidth+1) return false;
-              return !e.shadowRoot || walk(e.shadowRoot);
-            }); return walk(document); }
-            """),"Internal horizontal scroller at " + page.viewportSize().width);
+        // Keep Name/Status clipping checks separate from scrollability.
+        List<?> overflow = BrowserDiagnostics.horizontalOverflow(page);
+        assertTrue(overflow.isEmpty(), "Horizontal overflow at " + page.viewportSize().width
+                + "px, panel=" + (id("employee-detail").isVisible() ? "open" : "closed")
+                + ", sidebar=" + (id("sidebar").isVisible() ? "visible" : "hidden") + ": " + overflow);
     }
+
     void importantCellsFit() {
         BoundingBox table=box(id("employee-table"));
         for (String key : List.of("name","status")) {

@@ -26,7 +26,7 @@ RUN useradd --create-home builder \
     && ln -s /opt/node/bin/node /home/builder/.vaadin/node/node \
     && ln -s /opt/node/lib /home/builder/.vaadin/node/lib \
     && chown -R builder:builder /home/builder /app /opt/vaadinbench/frontend
-COPY build-check/start.sh /opt/build-check/start.sh
+COPY build-check/start.sh build-check/check-cache.sh /opt/build-check/
 WORKDIR /app
 
 FROM ${BASE_IMAGE} AS verifier

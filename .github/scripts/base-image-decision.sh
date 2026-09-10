@@ -58,7 +58,7 @@ stack=${3:-modern}
 # be added there and silently skipped here.
 is_agents_only() {
     case $1 in
-    base/agents.Dockerfile) return 0 ;;
+    base/agents.Dockerfile | .github/scripts/agents-image-decision.sh) return 0 ;;
     esac
     return 1
 }
@@ -66,7 +66,8 @@ is_agents_only() {
 is_base_input() {
     case $1 in
     base/* | .dockerignore | .github/workflows/base-image.yml | .github/scripts/task-images.sh) return 0 ;;
-    tasks/*/task.toml | tasks/*/tests/test.sh | tasks/flow-polymer-to-lit/tests/build-check/SubmittedDemoSmoke.java) return 0 ;;
+    tasks/*/task.toml | tasks/*/tests/test.sh | tasks/flow-polymer-to-lit/tests/build-check/SubmittedDemoSmoke.java | \
+        tasks/flow-polymer-to-lit/tests/build-check/check-cache.sh | tasks/flow-polymer-to-lit/tests/build-check/test-offline-cache.py) return 0 ;;
     tasks/*/environment/app/* | tasks/*/tests/protected/* | \
         tasks/*/tests/verifier/* | tasks/*/tests/expected/* | tasks/flow-polymer-to-lit/solution/*) return 0 ;;
     esac
@@ -123,11 +124,17 @@ while IFS= read -r path; do
         base/migration*) [ "$stack" = migration ] || continue ;;
         base/Dockerfile|base/warmup.sh|base/stack-version.txt)
             [ "$stack" = modern ] || continue ;;
-        tasks/*/task.toml) ;; # Stack membership changes can affect both images.
         tasks/*/*)
             task=${path#tasks/}; task=${task%%/*}
-            task_stack=$(task_image_stack "tasks/$task")
-            [ "${task_stack:-modern}" = "$stack" ] || continue
+            task_stack=""
+            [ ! -f "tasks/$task/task.toml" ] || task_stack=$(task_image_stack "tasks/$task")
+            # Include the former stack when a task moves or is removed.
+            old_stack=""
+            if old_toml=$(git show "$revision:tasks/$task/task.toml" 2>/dev/null); then
+                old_stack=$(printf '%s\n' "$old_toml" | sed -n 's/^image_stack *= *"\(.*\)"/\1/p')
+                old_stack=${old_stack:-modern}
+            fi
+            [ "$task_stack" = "$stack" ] || [ "$old_stack" = "$stack" ] || continue
             ;;
     esac
     if ! is_agents_only "$path" && is_base_input "$path"; then

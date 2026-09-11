@@ -31,7 +31,7 @@ name: base-image
 on:
   push:
     branches: [main]
-    # Only the inputs the images read. An instruction, a reference solution, a
+    # Only the inputs the images read. An instruction, a reference solution for an existing task, a
     # negative control or a task README changes nothing about the Maven repository
     # baked into the base, and republishing for one of those would rebuild two
     # architectures and invalidate every task-image cache for no reason. What is
@@ -39,12 +39,19 @@ on:
     # recorded, or cloned at the commit task.toml pins), the pom the verifier
     # restores, the verifier sources it compiles, and the entry point it runs —
     # plus the agents Dockerfile.
+    # The migration image additionally reads its task's reference solution.
     paths:
       - base/**
       - .dockerignore
+      - .github/scripts/task-images.sh
+      - .github/scripts/agents-image-decision.sh
       - .github/workflows/base-image.yml
       - tasks/*/task.toml
       - tasks/*/environment/app/**
+      - tasks/flow-polymer-to-lit/solution/**
+      - tasks/flow-polymer-to-lit/tests/build-check/SubmittedDemoSmoke.java
+      - tasks/flow-polymer-to-lit/tests/build-check/check-cache.sh
+      - tasks/flow-polymer-to-lit/tests/build-check/test-offline-cache.py
       - tasks/*/tests/protected/**
       - tasks/*/tests/verifier/**
       - tasks/*/tests/expected/**
@@ -68,7 +75,7 @@ jobs:
   # job that alone failed to inspect would try to assemble base digests nobody
   # uploaded. The choice is made once so it cannot differ.
   plan:
-    name: Decide whether the base must be rebuilt
+    name: Decide which images need rebuilding
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -77,6 +84,9 @@ jobs:
       packages: read
     outputs:
       reuse: ${{ steps.decide.outputs.reuse }}
+      migration_reuse: ${{ steps.decide.outputs.migration_reuse }}
+      agents_reuse: ${{ steps.decide.outputs.agents_reuse }}
+      migration_agents_reuse: ${{ steps.decide.outputs.migration_agents_reuse }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,16 +107,21 @@ jobs:
       - name: Decide
         id: decide
         run: |
-          pinned=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
-          revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
-          decision=$(bash .github/scripts/base-image-decision.sh \
-            "${{ github.event_name }}" "$revision")
-          if [ "$decision" = rebuild ]; then
-            echo "reuse=" >>"$GITHUB_OUTPUT"
-          else
-            echo "reuse=${decision#reuse }" >>"$GITHUB_OUTPUT"
-          fi
-          echo "$decision" >>"$GITHUB_STEP_SUMMARY"
+          source .github/scripts/task-images.sh
+          for stack in modern migration; do
+            prefix=""; [ "$stack" = modern ] || prefix=migration_
+            pinned=$(task_image_reference "$stack" tests)
+            revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
+            decision=$(bash .github/scripts/base-image-decision.sh "${{ github.event_name }}" "$revision" "$stack")
+            reuse=""; [ "$decision" = rebuild ] || reuse=${decision#reuse }
+            echo "${prefix}reuse=$reuse" >>"$GITHUB_OUTPUT"
+            pinned=$(task_image_reference "$stack" environment)
+            revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
+            agents=$(bash .github/scripts/agents-image-decision.sh "${{ github.event_name }}" "$revision" "$stack" "$decision")
+            reuse=""; [ "$agents" = rebuild ] || reuse=${agents#reuse }
+            echo "${prefix}agents_reuse=$reuse" >>"$GITHUB_OUTPUT"
+            echo "$stack: base=$decision; agents=$agents" >>"$GITHUB_STEP_SUMMARY"
+          done
 
   build:
     name: Build ${{ matrix.arch }}
@@ -192,7 +207,21 @@ jobs:
             build base "$BASE" base/Dockerfile
             base_ref="$BASE@$(cat /tmp/digests/base-${{ matrix.arch }})"
           fi
-          build agents "$AGENTS" base/agents.Dockerfile --build-arg "BASE_IMAGE=$base_ref"
+          if [ -z '${{ needs.plan.outputs.agents_reuse }}' ]; then
+            build agents "$AGENTS" base/agents.Dockerfile --build-arg "BASE_IMAGE=$base_ref"
+          fi
+          reuse='${{ needs.plan.outputs.migration_reuse }}'
+          if [ -n "$reuse" ]; then
+            migration_ref=$reuse
+          else
+            build migration_base "$BASE" base/migration.Dockerfile
+            migration_ref="$BASE@$(cat /tmp/digests/migration_base-${{ matrix.arch }})"
+          fi
+          if [ -z '${{ needs.plan.outputs.migration_agents_reuse }}' ]; then
+            build migration_agents "$AGENTS" base/agents.Dockerfile --build-arg "BASE_IMAGE=$migration_ref"
+          fi
+          # Keep an artifact even when every image is reused.
+          touch /tmp/digests/reuse-marker
 
       - uses: actions/upload-artifact@v4
         with:
@@ -241,7 +270,7 @@ jobs:
           # The plan job's decision, not one of this job's own: see the comment
           # on that job. When the base was reused there are no per-architecture
           # base digests to assemble — the published manifest list is what this
-          # run ships, and it is re-tagged so :$version and :<commit> name it too.
+          # run retains, without changing its tags or digest.
           reuse='${{ needs.plan.outputs.reuse }}'
 
           # Every architecture the build matrix covers must have uploaded a digest
@@ -251,11 +280,23 @@ jobs:
           # out of this file and fails if they differ.
           expected_arches="amd64 arm64"
 
-          for name in base agents; do
-            image="ghcr.io/$owner/vaadinbench-$name"
+          for name in base agents migration_base migration_agents; do
+            if [[ "$name" = migration_* ]]; then
+              version=$(tr -d '[:space:]' <base/migration-stack-version.txt)
+              reuse='${{ needs.plan.outputs.migration_reuse }}'
+            else
+              version=$(tr -d '[:space:]' <base/stack-version.txt)
+              reuse='${{ needs.plan.outputs.reuse }}'
+            fi
+            case "$name" in
+              agents) reuse='${{ needs.plan.outputs.agents_reuse }}' ;;
+              migration_agents) reuse='${{ needs.plan.outputs.migration_agents_reuse }}' ;;
+            esac
+            image="ghcr.io/$owner/vaadinbench-${name#migration_}"
             refs=""
-            if [ "$name" = base ] && [ -n "$reuse" ]; then
-              refs=$reuse
+            if [ -n "$reuse" ]; then
+              # Preserve the existing digest without publishing a replacement.
+              list=${reuse#*@}
             else
               for arch in $expected_arches; do
                 digest="/tmp/digests/$name-$arch"
@@ -266,11 +307,13 @@ jobs:
                 fi
                 refs="$refs $image@$(cat "$digest")"
               done
+              commit_tag='${{ github.sha }}'
+              [[ "$name" != migration_* ]] || commit_tag="$commit_tag-migration"
+              docker buildx imagetools create \
+                -t "$image:$version" -t "$image:$commit_tag" $refs
+              list=$(docker buildx imagetools inspect "$image:$version" \
+                     --format '{{.Manifest.Digest}}')
             fi
-            docker buildx imagetools create \
-              -t "$image:$version" -t "$image:${{ github.sha }}" $refs
-            list=$(docker buildx imagetools inspect "$image:$version" \
-                   --format '{{.Manifest.Digest}}')
             echo "$(echo "$name" | tr '[:lower:]' '[:upper:]')_IMAGE=$image" >>"$GITHUB_ENV"
             echo "$(echo "$name" | tr '[:lower:]' '[:upper:]')_DIGEST=$list" >>"$GITHUB_ENV"
             docker buildx imagetools inspect "$image@$list"
@@ -290,6 +333,8 @@ jobs:
         run: |
           bash .github/scripts/anonymous-pull.sh "$OWNER/vaadinbench-base" "$BASE_DIGEST"
           bash .github/scripts/anonymous-pull.sh "$OWNER/vaadinbench-agents" "$AGENTS_DIGEST"
+          bash .github/scripts/anonymous-pull.sh "$OWNER/vaadinbench-base" "$MIGRATION_BASE_DIGEST"
+          bash .github/scripts/anonymous-pull.sh "$OWNER/vaadinbench-agents" "$MIGRATION_AGENTS_DIGEST"
 
       # The digests, into the files that decide what a task builds on: the agents
       # image into the environments, the base into the verifiers, and the base
@@ -329,9 +374,11 @@ jobs:
           for attempt in 1 2 3; do
             git fetch --quiet origin main
             git checkout --quiet -B pin origin/main
-            sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$agents_ref|" tasks/*/environment/Dockerfile
-            sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$base_ref|" \
-              tasks/*/tests/Dockerfile base/agents.Dockerfile
+            source .github/scripts/task-images.sh
+            pin_task_images "$base_ref" "$agents_ref" \
+              "$MIGRATION_BASE_IMAGE@$MIGRATION_BASE_DIGEST" \
+              "$MIGRATION_AGENTS_IMAGE@$MIGRATION_AGENTS_DIGEST"
+            sed -i "s|^ARG BASE_IMAGE=.*|ARG BASE_IMAGE=$base_ref|" base/agents.Dockerfile
             if git diff --quiet; then
               echo "already pinned to $base_ref and $agents_ref" | tee -a "$GITHUB_STEP_SUMMARY"
               exit 0

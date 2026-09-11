@@ -125,6 +125,24 @@ OpenCode's model schema wants both halves of a limit whenever a model states
 one, so pass the two together; a half limit is refused here rather than by the
 CLI once the trial has started.
 
+OpenCode clamps each request to `min(limit.output, 32000)` with that ceiling
+compiled in, so an output limit above 32k is stated in the config and then
+dropped before the request leaves the CLI: the server sees `max_tokens: 32000`
+whatever the run asked for. When the entry ends up stating more than that, the
+row also sets `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX` to the same number, as
+`${OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX:-<output>}` so that Harbor does not
+redact a value under a key it reads as a secret. The ceiling then stops deciding
+the request and `limit.output` does; exporting the variable yourself still
+overrides it.
+
+That same ceiling is what OpenCode subtracts from the context window to get a
+session's usable input when a model states no `limit.input` — at
+`output == context` that is nothing at all, and the session compacts after every
+turn. So a raised ceiling comes with `limit.input`, stated as the window itself,
+against which OpenCode reserves its own 20k buffer for the reply. Pass
+`--openai-compatible-model-config '{"limit":{"input":N}}'` to state a narrower
+input budget, and compaction follows that instead.
+
 `--openai-compatible-vision` adds image input to the declared modalities. For a
 field with no flag of its own — `cost`, `reasoning`, `tool_call`, `attachment`,
 per-model `options` — `--openai-compatible-model-config` takes a JSON object,

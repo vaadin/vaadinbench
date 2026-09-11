@@ -31,9 +31,15 @@ public final class BrowserFeedbackControls {
             page.setContent("<div data-testid='employee-grid'></div>");
             page.evaluate("() => document.querySelector('div').attachShadow({mode:'open'}).innerHTML = "
                     + "'<div id=table style=\"width:100px;overflow-x:auto\"><div style=\"width:200px;height:10px\"></div></div>'");
-            String overflow = BrowserDiagnostics.horizontalOverflow(page).toString();
-            require(overflow.contains("employee-grid") && overflow.contains(">>> div#table")
-                    && overflow.contains("clientWidth=100") && overflow.contains("scrollWidth=200"), "Shadow scroller dimensions: " + overflow);
+            var findings = BrowserDiagnostics.horizontalOverflow(page);
+            require(findings.size() == 1, "One shadow scroller expected: " + findings);
+            var overflow = findings.getFirst();
+            require(overflow.get("path").toString().contains("employee-grid")
+                    && overflow.get("path").toString().contains(" > ::shadow > div#table")
+                    && ((Number) overflow.get("clientWidth")).intValue() == 100
+                    && ((Number) overflow.get("scrollWidth")).intValue() == 200,
+                    "Shadow scroller dimensions: " + overflow);
+            require(!overflow.containsKey("element"), "Duplicate overflow path: " + overflow);
             page.evaluate("() => document.querySelector('div').shadowRoot.querySelector('#table').style.width='200px'");
             require(BrowserDiagnostics.horizontalOverflow(page).isEmpty(), "Fitting content accepted");
             page.setContent("<div style='width:1600px;height:10px'></div>");

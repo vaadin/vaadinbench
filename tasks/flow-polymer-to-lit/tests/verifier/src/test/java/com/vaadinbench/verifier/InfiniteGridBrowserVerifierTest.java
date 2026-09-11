@@ -5,6 +5,7 @@ package com.vaadinbench.verifier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashMap;
 import java.util.List;
 
 import com.microsoft.playwright.Browser;
@@ -60,12 +61,17 @@ class InfiniteGridBrowserVerifierTest {
     static void startServerAndBrowser() throws Exception {
         jetty = new EmbeddedJetty();
         jetty.start();
+        // Pre-set Chromium's headless DBus fallback before starting the browser.
+        // Avoid libdbus autolaunch in containers; preserve an explicitly configured bus.
+        var browserEnv = new HashMap<>(System.getenv());
+        browserEnv.putIfAbsent("DBUS_SESSION_BUS_ADDRESS", "disabled:");
         playwright = Playwright.create();
         // Both flags are for running Chromium as root inside a container:
         // --no-sandbox because the namespace sandbox needs privileges the
         // trial container does not grant, --disable-dev-shm-usage because
         // Docker's default 64 MB /dev/shm makes Chromium crash under load.
         browser = playwright.chromium().launch(new LaunchOptions()
+                .setEnv(browserEnv)
                 .setArgs(List.of("--no-sandbox", "--disable-dev-shm-usage")));
 
         // Warm the bundle once, with the long budget, so every test below can

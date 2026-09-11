@@ -31,7 +31,7 @@ for name in paths:
     # These files are consumed verbatim or compared with upstream. Their notice
     # belongs alongside the data, never in its payload or schema.
     if path.name in {'design-contract.json', 'fixture.json', 'rows.tsv',
-                     'profile.txt', 'calibration-cases.json'}:
+                     'profile.txt', 'calibration-cases.json', 'package.json', 'package-lock.json'}:
         notice_path = path.parent / 'NOTICE.md'
         text = notice_path.read_text()
     elif path.name == 'pom.xml' and path.parent.name == 'protected':

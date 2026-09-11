@@ -4,7 +4,7 @@
 ARG BASE_IMAGE=ghcr.io/vaadin/vaadinbench-agents@sha256:0c4cf422107e911f2330d9b9b75a5f2a5f4bd5bf44c0f1d72bbfa1d05724a105
 FROM node:24.14.0-bookworm-slim AS browser-tools
 WORKDIR /opt/vaadinbench/browser-tools
-COPY browser-tools/package*.json ./
+COPY browser-tools/package*.json browser-tools/NOTICE.md ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 FROM ${BASE_IMAGE}

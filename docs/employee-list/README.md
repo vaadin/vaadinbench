@@ -87,7 +87,7 @@ page. Browser console errors and uncaught exceptions fail the affected scenario.
 The command inspects a live URL and does not rebuild, restart, or change sources.
 
 Exit 0 means every **selected** check passed, 1 means a check failed, and 2 means
-an invocation or browser-launch/reporting error. `report.json` records the profile,
+an invocation or environment error. `report.json` records the profile,
 requested groups, skipped scenarios, per-scenario elapsed time, failures, and
 `allChecksPassed` (true only for a passing full run). Visual reports include the
 exact SSIM measurements, geometry/style observations, full expected/actual/diff
@@ -112,6 +112,11 @@ For native development, build/test the generated tool against a running referenc
 ```sh
 bash scripts/test-ui-check.sh APP_DIR http://localhost:8193/employees OUTPUT
 ```
+
+During checks, navigation failures and design-file I/O errors stop the run with exit 2 and a
+run-level error in `report.json`. They are not retried for each remaining scenario.
+Application assertions and missing or non-interactive controls remain failed checks
+with exit 1.
 
 These controls exercise public/protected measurement parity (including a shifted
 page), shadow-root overflow diagnostics, input validation, failed-region crops,

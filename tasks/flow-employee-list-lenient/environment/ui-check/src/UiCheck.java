@@ -121,7 +121,7 @@ public final class UiCheck {
         return !errors.isEmpty() ? 2 : passed ? 0 : 1;
     }
 
-    private static CheckResult check(Browser browser, Options options, String name, String group) {
+    private static CheckResult check(Browser browser, Options options, String name, String group) throws IOException {
         long start = System.nanoTime();
         List<String> failures = new ArrayList<>();
         List<Map<String, Object>> overflow = List.of();
@@ -150,7 +150,11 @@ public final class UiCheck {
                     case "tableScrollKeepsShellAndHeaderStill" -> checks.tableScrollKeepsShellAndHeaderStill();
                     default -> throw new IllegalArgumentException("Unknown check: " + name);
                 }
-            } catch (AssertionError | Exception error) { failures.add(message(error)); }
+            } catch (AssertionError | PlaywrightException error) {
+                // Assertions and element/action failures describe the implementation.
+                // NavigationException and I/O errors abort through run()'s error handler.
+                failures.add(message(error));
+            }
             if (!failures.isEmpty()) {
                 try { overflow = BrowserDiagnostics.horizontalOverflow(page); }
                 catch (Exception error) { failures.add("Diagnostics unavailable: " + message(error)); }
@@ -160,7 +164,7 @@ public final class UiCheck {
                     screenshot = path.toString();
                 } catch (Exception error) { failures.add("Screenshot unavailable: " + message(error)); }
             }
-        } catch (Exception error) { failures.add(message(error)); }
+        }
         return new CheckResult(name, group, failures.isEmpty() ? "passed" : "failed", seconds(start), failures, overflow, screenshot);
     }
     private static double seconds(long start) { return (System.nanoTime() - start) / 1_000_000_000.0; }

@@ -172,10 +172,9 @@ jobs:
               fi
 
               if [ "$rc" -ne 0 ] || [ "$got" != "$want" ]; then
-                echo "::group::$name $agent verifier diagnostics"
+                echo "$name $agent verifier diagnostics:"
                 find "$job" -path '*/verifier/test-stdout.txt' -exec tail -n 100 {} \;
                 find "$job" -path '*/verifier/failure-reason.txt' -exec cat {} \;
-                echo "::endgroup::"
               fi
 
               # The other thing a trial owes: the verifier's record of what the

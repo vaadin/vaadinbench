@@ -387,7 +387,8 @@ rm -rf "$lib_work/logs"; mkdir -p "$lib_work/logs"
     . "$ROOT/base/verify-lib.sh"
     vb_init
     vb_restore_protected
-    VB_TEST_COMPILE_FAIL=1 VB_TEST_CLASSPATH="$lib_work/fake-dep.jar" \
+    VB_TEST_COMPILE_FAIL=1 VB_TEST_REPORT_DIR="$REPORT_DIR" VB_TEST_SUITES=1 \
+        VB_TEST_CLASSPATH="$lib_work/fake-dep.jar" \
         PATH="$lib_work/bin:$PATH" vb_grade
 ) >"$lib_work/out-compile.txt" 2>&1
 assert "compile failure scores zero" test "$(cat "$lib_work/logs/reward.txt")" = 0

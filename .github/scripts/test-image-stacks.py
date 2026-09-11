@@ -110,6 +110,18 @@ class ImageStacks(unittest.TestCase):
         self.run_cmd('bash', '-euo', 'pipefail', '-c', select, env=dict(os.environ, GITHUB_OUTPUT=str(self.repo / 'env')))
         self.assertEqual((self.repo / 'env').read_text(), 'tasks=tasks/flow-polymer-to-lit\n')
 
+    def test_employee_helper_changes_select_both_profiles(self):
+        self.write('scripts/employee-list/BrowserFeedbackControls.java', 'changed')
+        self.commit()
+        workflow = yaml.safe_load((ROOT / '.github/workflows/controls.yml').read_text())
+        select = next(s['run'] for s in workflow['jobs']['select']['steps'] if s.get('id') == 'select')
+        values = {'github.event_name': 'pull_request', 'github.event.pull_request.base.sha || github.event.before': self.revision}
+        select = re.sub(r'\$\{\{\s*(.*?)\s*\}\}', lambda m: values[m[1]], select)
+        self.write('env', '')
+        self.run_cmd('bash', '-euo', 'pipefail', '-c', select, env=dict(os.environ, GITHUB_OUTPUT=str(self.repo / 'env')))
+        self.assertEqual((self.repo / 'env').read_text(),
+                         'tasks=tasks/flow-employee-list-lenient tasks/flow-employee-list-strict\n')
+
     def test_unrelated_change_produces_exactly_empty_selection(self):
         self.write('README.md', 'documentation only')
         self.commit()

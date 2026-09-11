@@ -93,7 +93,10 @@ requested groups, skipped scenarios, per-scenario elapsed time, failures, and
 exact SSIM measurements, geometry/style observations, full expected/actual/diff
 PNGs and crops for failing SSIM regions. Overflow findings include the element
 path through shadow roots, viewport and panel state, client/scroll widths, and
-excess pixels. A new temporary output directory is created for each run;
+excess pixels. Each run creates a unique `/logs/agent/ui-check-*` directory, so
+Harbor retains the full reports and images under the trial's `agent/` directory.
+Outside Harbor, an absent or non-writable `/logs/agent` falls back to the system
+temp directory. The command prints the chosen location;
 `--output DIR` requires an empty directory to prevent stale reports. Full details
 are kept in artifacts while the terminal summary limits the number of failures.
 

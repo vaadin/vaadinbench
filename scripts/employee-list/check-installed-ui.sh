@@ -19,16 +19,22 @@ for ((attempt=0; attempt<90; attempt++)); do
 done
 if [ "$ready" != true ]; then cat /tmp/ui-check-app.log; exit 1; fi
 rc=0
-ui-check --url http://localhost:8193/employees --checks all --output /tmp/ui-check-installed > /tmp/ui-check-installed.log 2>&1 || rc=$?
+# Standalone control containers emulate Harbor's retained agent-log directory.
+mkdir -p /logs/agent
+ui-check --url http://localhost:8193/employees --checks all > /tmp/ui-check-installed.log 2>&1 || rc=$?
 cat /tmp/ui-check-installed.log
 if [ "$rc" -ne "$expected" ]; then
     echo "Expected ui-check exit $expected, got $rc"
     exit 1
 fi
-python3 - "$expected" "$profile" <<'PY'
+report_path=$(sed -n 's/^Report: //p' /tmp/ui-check-installed.log)
+python3 - "$expected" "$profile" "$report_path" <<'PY'
 import json, sys
 from pathlib import Path
-report = json.loads(Path('/tmp/ui-check-installed/report.json').read_text())
+path = Path(sys.argv[3])
+assert path.parent.parent == Path('/logs/agent'), path
+assert path.parent.name.startswith('ui-check-'), path
+report = json.loads(path.read_text())
 passed = sys.argv[1] == '0'
 assert report['profile'] == sys.argv[2], report
 assert report['allChecksPassed'] is passed, report

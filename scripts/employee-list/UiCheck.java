@@ -26,7 +26,8 @@ public final class UiCheck {
           --checks all|visual|responsive|behavior   Comma-separated groups; default all
           --profile strict|lenient                 Default: installed task profile
           --design DIR                             Default /app/design
-          --output DIR                             Empty directory; default a new /tmp/ui-check-* directory
+          --output DIR                             Empty directory; default /logs/agent/ui-check-* when writable,
+                                                   otherwise a new directory in the system temp directory
           --help                                   Show this help
         Start/recompile your app before checking; this command only inspects its live URL.
         Exit codes: 0 selected checks passed, 1 checks failed, 2 invocation/environment error.
@@ -72,8 +73,14 @@ public final class UiCheck {
             try (var files = Files.list(output)) {
                 if (files.findAny().isPresent()) throw new IllegalArgumentException("--output must be empty (avoids stale results): " + output);
             }
-        } else output = Files.createTempDirectory(Path.of(System.getProperty("java.io.tmpdir")), "ui-check-");
+        } else output = defaultOutput(Path.of("/logs/agent"), Path.of(System.getProperty("java.io.tmpdir")));
         return new Options(url, groups, profile, design, output);
+    }
+
+    static Path defaultOutput(Path agentLogs, Path temporary) throws IOException {
+        // Harbor retains /logs/agent; /tmp disappears with the task container.
+        Path parent = Files.isDirectory(agentLogs) && Files.isWritable(agentLogs) ? agentLogs : temporary;
+        return Files.createTempDirectory(parent, "ui-check-").toAbsolutePath();
     }
 
     public static void main(String[] args) {

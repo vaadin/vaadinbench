@@ -17,7 +17,7 @@ pathlib.Path(sys.argv[2], 'config.json').write_text(json.dumps(config))
 PY
 export PLAYWRIGHT_MCP_CONFIG="$work/config.json"
 run() {
-    playwright-cli "$@" > "$work/command.txt" 2>&1
+    playwright-cli "$@" > "$work/command.txt" 2>&1 || { cat "$work/command.txt"; exit 1; }
     cat "$work/command.txt"
     # Some CLI tool failures are printed instead of becoming a nonzero exit.
     if grep -q '^### Error' "$work/command.txt"; then exit 1; fi

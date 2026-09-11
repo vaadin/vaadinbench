@@ -65,7 +65,11 @@ public final class UiCheck {
         if (!Set.of("strict", "lenient").contains(profile)) throw new IllegalArgumentException("Unknown profile: " + profile);
         Path design = Path.of(flags.getOrDefault("--design", "/app/design")).toAbsolutePath();
         // Fail before browser startup if the public inputs are unavailable or invalid.
-        new DesignContract(profile, DesignInputs.directory(design));
+        DesignInputs inputs = DesignInputs.directory(design);
+        new DesignContract(profile, inputs);
+        inputs.rows();
+        inputs.image("employee-list-plain.png");
+        inputs.image("employee-list.png");
         Path output;
         if (flags.containsKey("--output")) {
             output = Path.of(flags.get("--output")).toAbsolutePath();

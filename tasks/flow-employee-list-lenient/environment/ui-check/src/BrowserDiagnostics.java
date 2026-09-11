@@ -30,7 +30,7 @@ public final class BrowserDiagnostics {
               const label = e => e.localName + (e.id ? '#' + e.id : '')
                 + (e.dataset.testid ? '[data-testid="' + e.dataset.testid + '"]' : '')
                 + (e.getAttribute('part') ? '[part="' + e.getAttribute('part') + '"]' : '');
-              const record = (e, path, kind) => found.push({kind, element:path,
+              const record = (e, path, kind) => found.push({kind,
                 path: path.replaceAll(" >>> ", " > ::shadow > "),
                 overflowPx: e.scrollWidth - (kind === "document" ? innerWidth : e.clientWidth),
                 viewportWidth: innerWidth,

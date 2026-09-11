@@ -54,6 +54,7 @@ public final class UiCheckControls {
                 var findings = BrowserDiagnostics.horizontalOverflow(page);
                 require(findings.size() == 1, "Expected one internal scroller: " + findings);
                 require(findings.getFirst().get("path").toString().contains("::shadow"), "Missing shadow-root path");
+                require(!findings.getFirst().containsKey("element"), "Duplicate overflow element path");
                 require(((Number)findings.getFirst().get("overflowPx")).intValue() == 60, "Wrong overflow amount");
                 page.evaluate("() => document.querySelector('#host').shadowRoot.querySelector('#scroll').style.overflowX='hidden'");
                 require(BrowserDiagnostics.horizontalOverflow(page).isEmpty(), "Hidden overflow treated as a scroller");
@@ -182,15 +183,53 @@ public final class UiCheckControls {
         var unreachable = run(design, testUrl + "/closed", output.resolve("unreachable"), "all", 2);
         require(unreachable.getAsJsonArray("checks").isEmpty(), "Unreachable URL became a failed check");
 
-        Path missing = output.resolve("incomplete-design");
-        Files.createDirectories(missing);
-        Files.copy(design.resolve("design-contract.json"), missing.resolve("design-contract.json"));
-        var image = run(missing, url, output.resolve("missing-image"), "all", 2);
-        require(image.getAsJsonArray("errors").toString().contains("employee-list-plain.png"), "Missing image not identified");
-        require(image.getAsJsonArray("checks").isEmpty(), "Missing image became a failed check");
-        var fixture = run(missing, url, output.resolve("missing-fixture"), "behavior", 2);
-        require(fixture.getAsJsonArray("errors").toString().contains("fixture.json"), "Missing fixture not identified");
-        require(fixture.getAsJsonArray("checks").size() == 3, "Missing fixture did not stop later scenarios");
-        System.out.println("Navigation and design I/O failures abort with exit 2; application assertions retain exit 1");
+        invalidInputs(design, url, output);
+        System.out.println("Navigation errors abort with exit 2; invalid inputs fail before browser startup");
+    }
+
+    static void invalidInputs(Path design, String url, Path output) throws Exception {
+        Path inputs = Files.createDirectories(output.resolve("invalid-inputs"));
+        List<String> names = List.of("design-contract.json", "fixture.json", "employee-list-plain.png", "employee-list.png");
+        for (String name : names) Files.copy(design.resolve(name), inputs.resolve(name));
+        for (String name : List.of("fixture.json", "employee-list-plain.png", "employee-list.png")) {
+            Path file = inputs.resolve(name);
+            byte[] original = Files.readAllBytes(file);
+            Files.delete(file);
+            rejectsInputs(inputs, url, output, name, "missing-" + name);
+            Files.writeString(file, "not valid JSON or PNG");
+            rejectsInputs(inputs, url, output, name, "malformed-" + name);
+            if (name.endsWith(".png")) {
+                for (int width : List.of(2879, 2881)) {
+                    javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(width, 2048,
+                            java.awt.image.BufferedImage.TYPE_INT_RGB), "png", file.toFile());
+                    rejectsInputs(inputs, url, output, name, "width-" + width + "-" + name);
+                }
+                javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2880, 2047,
+                        java.awt.image.BufferedImage.TYPE_INT_RGB), "png", file.toFile());
+                rejectsInputs(inputs, url, output, name, "height-" + name);
+            }
+            Files.write(file, original);
+        }
+        Files.writeString(inputs.resolve("fixture.json"), "{}");
+        rejectsInputs(inputs, url, output, "fixture.json", "missing-rows");
+    }
+
+    static void rejectsInputs(Path inputs, String url, Path output, String filename, String label) throws Exception {
+        Path destination = output.resolve(label);
+        try {
+            UiCheck.parse(new String[]{"--url", url, "--profile", "strict", "--design", inputs.toString(),
+                    "--checks", "behavior", "--output", destination.toString()});
+            throw new AssertionError("Invalid input accepted: " + label);
+        } catch (java.io.IOException expected) {
+            require(expected.getMessage().contains(filename), "Invalid input diagnostic lost filename: " + expected);
+            require(!Files.exists(destination), "Invalid inputs created a report directory");
+        }
+        // Exercise main's documented exit code as well as the pre-browser parse path.
+        Process process = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin/java").toString(),
+                "-cp", System.getProperty("java.class.path"), UiCheck.class.getName(),
+                "--url", url, "--profile", "strict", "--design", inputs.toString())
+                .redirectErrorStream(true).start();
+        String message = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        require(process.waitFor() == 2 && message.contains(filename), "Wrong CLI input failure: " + message);
     }
 }

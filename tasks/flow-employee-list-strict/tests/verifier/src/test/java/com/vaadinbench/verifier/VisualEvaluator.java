@@ -23,15 +23,22 @@ public final class VisualEvaluator {
     private VisualEvaluator() {}
 
     public static void settle(Page page) {
-        page.evaluate("async()=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode()));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}");
+        BrowserSession.settle(page);
     }
 
     public static Evaluation evaluate(Page page, String profile, Path output) throws IOException {
         return evaluate(page,profile,output,state -> {});
     }
     static Evaluation evaluate(Page page, String profile, Path output, java.util.function.Consumer<String> beforeState) throws IOException {
+        return evaluate(page, profile, output, DesignInputs.protectedResources(), beforeState);
+    }
+    public static Evaluation evaluate(Page page, String profile, Path output, DesignInputs inputs) throws IOException {
+        return evaluate(page, profile, output, inputs, state -> {});
+    }
+    private static Evaluation evaluate(Page page, String profile, Path output, DesignInputs inputs,
+                                       java.util.function.Consumer<String> beforeState) throws IOException {
         Files.createDirectories(output);
-        DesignContract contract = new DesignContract(profile);
+        DesignContract contract = new DesignContract(profile, inputs);
         List<DesignContract.Measurement> design = new ArrayList<>();
         List<VisualMeasurement> visual = new ArrayList<>();
         List<String> failures = new ArrayList<>();
@@ -54,7 +61,7 @@ public final class VisualEvaluator {
             byte[] second = page.screenshot(new Page.ScreenshotOptions().setAnimations(ScreenshotAnimations.DISABLED));
             if (!Arrays.equals(first, second)) failures.add(state + ": consecutive captures are not stable");
             Files.write(output.resolve(name + "-actual.png"), second);
-            BufferedImage expected = reference(name);
+            BufferedImage expected = inputs.image(name + ".png");
             BufferedImage actual = ImageIO.read(new ByteArrayInputStream(second));
             ImageIO.write(expected, "png", output.resolve(name + "-expected.png").toFile());
             if (actual == null || actual.getWidth() != 2880 || actual.getHeight() != 2048) {
@@ -66,13 +73,26 @@ public final class VisualEvaluator {
                 double ssim = StructuralSimilarity.compare(expected, actual, region);
                 boolean passed = ssim >= contract.minimumSsim();
                 visual.add(new VisualMeasurement(state, region.name(), ssim, contract.minimumSsim(), passed));
-                if (!passed) failures.add(state + "/" + region.name() + ": SSIM " + ssim + " < " + contract.minimumSsim());
+                if (!passed) {
+                    failures.add(state + "/" + region.name() + ": SSIM " + ssim + " < " + contract.minimumSsim());
+                    writeRegion(output, state, region, expected, actual);
+                }
             }
         }
         Evaluation result = new Evaluation(profile, design, visual, failures);
         Files.writeString(output.resolve("design-evaluation.json"), new GsonBuilder().setPrettyPrinting().create().toJson(result));
         Files.writeString(output.resolve("visual-report.html"), report(result));
         return result;
+    }
+
+    private static void writeRegion(Path output, String state, StructuralSimilarity.Region region,
+                                    BufferedImage expected, BufferedImage actual) throws IOException {
+        BufferedImage expectedCrop = expected.getSubimage(region.x(), region.y(), region.width(), region.height());
+        BufferedImage actualCrop = actual.getSubimage(region.x(), region.y(), region.width(), region.height());
+        String name = region.name().replaceAll("[^A-Za-z0-9_-]", "_");
+        ImageIO.write(expectedCrop, "png", output.resolve(state + "-" + name + "-expected.png").toFile());
+        ImageIO.write(actualCrop, "png", output.resolve(state + "-" + name + "-actual.png").toFile());
+        ImageIO.write(diff(expectedCrop, actualCrop), "png", output.resolve(state + "-" + name + "-diff.png").toFile());
     }
 
     // Check image-painting CSS properties, including generated content and
@@ -118,14 +138,6 @@ public final class VisualEvaluator {
         return image;
     }
 
-    private static BufferedImage reference(String name) throws IOException {
-        try (InputStream in = VisualEvaluator.class.getClassLoader().getResourceAsStream("design/" + name + ".png")) {
-            if (in == null) throw new IOException("Protected reference missing: " + name);
-            BufferedImage result = ImageIO.read(in);
-            if (result == null) throw new IOException("Invalid protected PNG: " + name);
-            return result;
-        }
-    }
     private static String escape(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }

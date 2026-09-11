@@ -6,7 +6,6 @@ import com.google.gson.*;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.AriaRole;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** The protected copy of the public design contract is the only source of thresholds. */
@@ -17,10 +16,11 @@ public final class DesignContract {
     private final JsonObject profile;
 
     public DesignContract(String profileName) throws IOException {
-        try (InputStream in = DesignContract.class.getClassLoader().getResourceAsStream("design/design-contract.json")) {
-            if (in == null) throw new IOException("Protected design contract missing");
-            root = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
-        }
+        this(profileName, DesignInputs.protectedResources());
+    }
+
+    public DesignContract(String profileName, DesignInputs inputs) throws IOException {
+        root = JsonParser.parseString(inputs.text("design-contract.json")).getAsJsonObject();
         if (root.get("schemaVersion").getAsInt() != 1) throw new IOException("Unsupported design contract");
         JsonElement selected = root.getAsJsonObject("profiles").get(profileName);
         if (selected == null) throw new IOException("Unknown profile: " + profileName);

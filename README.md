@@ -109,6 +109,35 @@ becomes part of `--default` or another user's run. OpenCode gets the selected
 condition's skills and MCP server like any other agent; `vaadin-skills-mcp-tools`
 is skipped because agent-tools is a Claude Code plugin.
 
+OpenCode knows nothing about a model ID it has no entry for, so the run states
+what the endpoint serves. This matters beyond bookkeeping: OpenCode decides when
+to compact a session from the context window, so an unstated one leaves that
+threshold to the CLI's default rather than to the run.
+
+```bash
+uv run vaadin-bench.py \
+  -c vanilla -m Qwen3.8-27B-UD-Q5_K_XL-MTP -t flow-new-view -k 1 \
+  --openai-compatible http://model-host:8080/v1 \
+  --openai-compatible-context 262144 --openai-compatible-output 24384
+```
+
+`--openai-compatible-vision` adds image input to the declared modalities. For a
+field with no flag of its own — `cost`, `reasoning`, `tool_call`, `attachment`,
+per-model `options` — `--openai-compatible-model-config` takes a JSON object,
+inline or as `@path/to/file.json`, and merges it over the entry the other flags
+build, key by key:
+
+```bash
+uv run vaadin-bench.py \
+  -c vanilla -m Qwen3.8-27B-UD-Q5_K_XL-MTP -t flow-new-view -k 1 \
+  --openai-compatible http://model-host:8080/v1 \
+  --openai-compatible-context 262144 \
+  --openai-compatible-model-config '{"limit":{"output":24384},"reasoning":true}'
+```
+
+Whatever the entry ends up as, it is part of the printed `harbor run` command and
+of the trial's recorded config, so `--dry-run` shows exactly what OpenCode reads.
+
 Provider-backed calls may be paid; a local server consumes its own compute. Run
 `uv run vaadin-bench.py` without arguments to see all available conditions,
 agents, models and tasks before starting a larger run.
@@ -271,6 +300,10 @@ The most useful options are:
 | `--dry-run` | commands without running them |
 | `--keep-job-binaries` | keeps disposable agent state, including copied CLI builds and OpenCode data |
 | `--openai-compatible` | API root; runs the sole `-m` model through OpenCode |
+| `--openai-compatible-context` | context window in tokens; OpenCode compacts against it |
+| `--openai-compatible-output` | maximum output tokens per turn |
+| `--openai-compatible-vision` | declares image input as well as text |
+| `--openai-compatible-model-config` | JSON object, inline or `@file`, merged over the model entry |
 
 Selections can be repeated or comma-separated. Condition and task names are
 exact unless you use a glob; model names also support a short substring such as

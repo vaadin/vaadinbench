@@ -27,10 +27,10 @@ MIGRATION_SECONDS = {
 }
 
 
-def assign(task, controls, shards):
+def assign(stack, controls, shards):
     if shards < 1:
         raise ValueError('shards must be positive')
-    if Path(task).name != 'flow-polymer-to-lit' or shards == 1:
+    if stack != 'migration' or shards == 1:
         return [i % shards for i in range(len(controls))]
     # Schedule longest first onto the least-loaded group. New controls get a
     # typical two-minute estimate and are included without editing this table.
@@ -45,6 +45,6 @@ def assign(task, controls, shards):
 
 
 if __name__ == '__main__':
-    task, shards, *controls = sys.argv[1:]
-    for group in assign(task, controls, int(shards)):
+    stack, shards, *controls = sys.argv[1:]
+    for group in assign(stack, controls, int(shards)):
         print(group)

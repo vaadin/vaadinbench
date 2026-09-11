@@ -280,7 +280,7 @@ jobs:
                 echo "  ok    harbor:$agent -> agent.patch" \
                      "$(wc -c <"$patch" | tr -d ' ') bytes"
               fi
-              if [ "$name" = flow-polymer-to-lit ] && [ -z "$got" ]; then
+              if [ -z "$got" ]; then
                 find "$job" -name exception.txt -exec tail -80 {} \;
               fi
               echo "$(date -u +%FT%TZ) END $name harbor:$agent ($((SECONDS - started))s, exit=$rc, reward=${got:-none})"
@@ -425,7 +425,7 @@ jobs:
               cid=""
 
               verifier_rc=0
-              if [ "$name" = flow-polymer-to-lit ]; then
+              if [ -f "$task/tests/run-local-verifier.sh" ]; then
                 bash "$task/tests/run-local-verifier.sh" /tmp/vb-app "$log/verifier" \
                   >"$log/console.txt" 2>&1 || verifier_rc=$?
               else
@@ -466,7 +466,7 @@ jobs:
             # Use measured migration durations; every discovered control is
             # assigned once, including controls without a timing estimate.
             assignment_output=$(python3 .github/scripts/control-shards.py \
-              "$task" "$CONTROL_SHARDS" "${controls[@]}")
+              "${{ matrix.stack }}" "$CONTROL_SHARDS" "${controls[@]}")
             mapfile -t assignments <<< "$assignment_output"
             control_index=0
             valid_controls=0

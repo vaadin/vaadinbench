@@ -57,7 +57,7 @@ jobs:
                   if echo "$changed" | grep -q '^base/migration'; then
                     sel="$sel tasks/flow-polymer-to-lit"
                   fi
-                  sel=$(printf '%s\n' $sel | sort -u | tr '\n' ' ')
+                  sel=$(printf '%s\n' $sel | sort -u | xargs)
                   why="changed tasks and migration inputs"
                 fi
               fi ;;

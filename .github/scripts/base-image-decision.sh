@@ -102,13 +102,13 @@ esac
 # first publication this line carries the bootstrap tag, which names no image
 # that exists yet.
 if [ "$stack" = migration ]; then
-    published=$(sed -n 's/^ARG BASE_IMAGE=//p' tasks/flow-polymer-to-lit/tests/Dockerfile)
+    published=$(task_image_reference "$stack" tests) || rebuild "no verifier image reference for $stack"
 else
     published=$(sed -n 's/^ARG BASE_IMAGE=//p' base/agents.Dockerfile)
 fi
 case $published in
 *@sha256:[0-9a-f]*) ;;
-*) rebuild "base/agents.Dockerfile names ${published:-nothing} — no published base to reuse" ;;
+*) rebuild "$stack stack pins ${published:-nothing} — no published base to reuse" ;;
 esac
 
 [ -n "$revision" ] || rebuild "$published records no build revision"

@@ -50,14 +50,23 @@ jobs:
                 sel="$all"; why="no usable base ref"
               else
                 changed=$(git diff --name-only "$base" HEAD)
-                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|scripts/acme-views/|scripts/(test-acme-views\.sh|run-acme-browser-controls\.sh|sync-acme-views\.py)$|\.github/workflows/controls\.yml)'; then
-                  sel="$all"; why="base image, Harbor pin, workflow or ACME controls changed"
+                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|\.github/workflows/controls\.yml)'; then
+                  sel="$all"; why="base image, Harbor pin, workflow changed"
                 else
-                  sel=$(echo "$changed" | grep -oE '^tasks/[^/]+' | sort -u | tr '\n' ' ')
-                  why="changed tasks"
+                  selected=$(echo "$changed" | grep -oE '^tasks/[^/]+' || true)
+                  if echo "$changed" | grep -qE '^scripts/(acme-views/|(test-acme-views\.sh|run-acme-browser-controls\.sh|sync-acme-views\.py|regrade-acme-views\.py)$)'; then
+                    selected="$selected $(ls -d tasks/flow-{payroll,orders,reports}-{strict,lenient})"
+                  fi
+                  sel=$(echo "$selected" | tr '[:space:]' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ')
+                  why="changed tasks and affected ACME tasks"
                 fi
               fi ;;
           esac
+          acme=false
+          if echo "$sel" | grep -qE 'tasks/flow-(payroll|orders|reports)-(strict|lenient)( |$)'; then
+            acme=true
+          fi
+          echo "acme=$acme" >>"$GITHUB_OUTPUT"
           echo "tasks=$sel" >>"$GITHUB_OUTPUT"
           echo "Selected ($why): ${sel:-none}"
 
@@ -115,7 +124,7 @@ jobs:
             tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
 
       - name: ACME browser regression controls
-        if: steps.select.outputs.tasks != ''
+        if: steps.select.outputs.acme == 'true'
         run: |
           docker run --rm --network none --cpus 2 --memory 4g \
             --mount "type=bind,src=$PWD,dst=/workspace,readonly" \

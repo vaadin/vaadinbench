@@ -132,7 +132,7 @@ public final class UiCheck {
             page.onPageError(error -> failures.add("JavaScript: " + error));
             page.onConsoleMessage(m -> { if (m.type().equals("error")) failures.add("Console: " + m.text() + " (" + m.location() + ")"); });
             try {
-                BrowserSession.open(page, options.url());
+                BrowserSession.open(page, options.url(), options.output().resolve(name + "-startup-failure.txt"));
                 DesignInputs inputs = DesignInputs.directory(options.design());
                 EmployeeListChecks checks = new EmployeeListChecks(page, inputs);
                 switch (name) {

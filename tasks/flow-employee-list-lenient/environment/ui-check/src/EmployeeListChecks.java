@@ -108,7 +108,8 @@ final class EmployeeListChecks {
             assertArrayEquals(Arrays.copyOfRange(data,1,data.length), BrowserElements.texts(page,r));
         }
         select("e02");
-        assertThat(id("employee-detail").locator("h2")).hasText("Liam Johnson");
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Liam Johnson")).isVisible();
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Liam Johnson")).hasText("Liam Johnson");
         assertThat(id("employee-detail")).containsText("4 years 3 months in service");
         assertThat(id("employee-detail")).containsText("13 assigned tasks");
         String[] keys={"first-name","last-name","phone","email","dob"};
@@ -140,7 +141,8 @@ final class EmployeeListChecks {
         assertTrue(box(id("employee-table")).width < full-100,"Table narrows");
         select("e01");
         assertThat(row("e02")).hasAttribute("aria-selected","false");
-        assertThat(id("employee-detail").locator("h2")).hasText("Henry Thompson");
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Henry Thompson")).isVisible();
+        assertThat(BrowserDiagnostics.employeeHeading(page, "Henry Thompson")).hasText("Henry Thompson");
         assertThat(input("first-name")).hasValue("Henry");
         assertEquals("Marketing",selectionValue("department"));
         assertEquals("Content strategist",selectionValue("job-title"));
@@ -163,7 +165,9 @@ final class EmployeeListChecks {
 
     void noOverflow() {
         var overflow = BrowserDiagnostics.horizontalOverflow(page);
-        assertEquals(List.of(), overflow, "Horizontal overflow at " + page.viewportSize().width + " CSS px");
+        assertTrue(overflow.isEmpty(), "Horizontal overflow at " + page.viewportSize().width
+                + "px, panel=" + (id("employee-detail").isVisible() ? "open" : "closed")
+                + ", sidebar=" + (id("sidebar").isVisible() ? "visible" : "hidden") + ": " + overflow);
     }
     void importantCellsFit() {
         BoundingBox table=box(id("employee-table"));

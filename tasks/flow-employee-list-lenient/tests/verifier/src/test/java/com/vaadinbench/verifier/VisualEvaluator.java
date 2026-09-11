@@ -68,6 +68,11 @@ public final class VisualEvaluator {
                 failures.add(state + ": expected an opaque 2880x2048 capture");
                 continue;
             }
+            for (var m : contract.measureIndicator(actual, state)) {
+                design.add(m);
+                if (!m.passed()) failures.add(state + "/" + m.check() + "/" + m.property()
+                        + ": expected " + m.expected() + ", got " + m.actual() + " (tolerance " + m.tolerance() + ")");
+            }
             ImageIO.write(diff(expected, actual), "png", output.resolve(name + "-diff.png").toFile());
             for (StructuralSimilarity.Region region : contract.regions(state)) {
                 double ssim = StructuralSimilarity.compare(expected, actual, region);

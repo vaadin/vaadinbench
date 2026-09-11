@@ -39,7 +39,7 @@ class EmployeeListBrowserVerifierTest {
         errors = new ArrayList<>();
         page.onPageError(errors::add);
         page.onConsoleMessage(m -> { if (m.type().equals("error")) errors.add(m.text()); });
-        BrowserSession.open(page, "http://localhost:" + port + "/employees");
+        BrowserSession.open(page, "http://localhost:" + port + "/employees", OUTPUT.resolve("startup-failure.txt"));
         checks = new EmployeeListChecks(page, DesignInputs.protectedResources());
     }
     @AfterEach void close(TestInfo info) throws Exception {

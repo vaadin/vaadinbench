@@ -463,13 +463,15 @@ jobs:
                   -type d -print0 | sort -z
               )
             fi
-            # Round-robin over sorted names: every control belongs to exactly
-            # one job, including new controls. Each job grades sequentially.
-            # The measured 17-control split is approximately 10, 11 and 13 minutes.
+            # Use measured migration durations; every discovered control is
+            # assigned once, including controls without a timing estimate.
+            assignment_output=$(python3 .github/scripts/control-shards.py \
+              "$task" "$CONTROL_SHARDS" "${controls[@]}")
+            mapfile -t assignments <<< "$assignment_output"
             control_index=0
             valid_controls=0
             for c in "${controls[@]}"; do
-              assigned=$((control_index % CONTROL_SHARDS))
+              assigned=${assignments[$control_index]}
               control_index=$((control_index + 1))
               [ "$assigned" -eq "$CONTROL_SHARD" ] || continue
               cname=$(basename "$c")

@@ -211,15 +211,36 @@ class ImageStacks(unittest.TestCase):
         for names in [controls, sorted(controls + ['new-control'])]:
             actual = []
             for shard in range(3):
-                script = 'control_index=0; for c in "$@"; do\n' + selection + 'echo "$c"; done'
+                assigned = self.run_cmd('python3', str(ROOT / '.github/scripts/control-shards.py'),
+                                        'tasks/flow-polymer-to-lit', '3', *names)
+                script = 'assignments=(' + assigned.replace('\n', ' ') + '); control_index=0; for c in "$@"; do\n' + selection + 'echo "$c"; done' 
                 output = self.run_cmd('bash', '-euo', 'pipefail', '-c', script, '_', *names,
                                      env=dict(os.environ, CONTROL_SHARD=str(shard), CONTROL_SHARDS='3'))
                 actual.extend(output.splitlines())
             self.assertEqual(sorted(actual), names)
             self.assertEqual(len(actual), len(set(actual)))
+        script = 'assignments=(' + '0 ' * len(controls) + '); control_index=0; for c in "$@"; do\n' + selection + 'echo "$c"; done'
         output = self.run_cmd('bash', '-euo', 'pipefail', '-c', script, '_', *controls,
                              env=dict(os.environ, CONTROL_SHARD='0', CONTROL_SHARDS='1'))
         self.assertEqual(output.splitlines(), controls)
+
+    def test_migration_shards_are_balanced_and_deterministic(self):
+        import runpy
+        scheduler = runpy.run_path(str(ROOT / '.github/scripts/control-shards.py'))
+        assign = scheduler['assign']
+        weights = scheduler['MIGRATION_SECONDS']
+        names = sorted(weights)
+        groups = assign('tasks/flow-polymer-to-lit', names, 3)
+        loads = [sum(weights[n] for n, g in zip(names, groups) if g == group)
+                 for group in range(3)]
+        self.assertLessEqual(max(loads) - min(loads), 60)
+        self.assertEqual(dict(zip(names, groups)),
+                         dict(zip(reversed(names), assign('flow-polymer-to-lit', list(reversed(names)), 3))))
+        self.assertEqual(assign('modern-task', names, 3), [i % 3 for i in range(len(names))])
+        self.assertEqual(assign('flow-polymer-to-lit', [], 3), [])
+        self.assertEqual(assign('flow-polymer-to-lit', names, 1), [0] * len(names))
+        with self.assertRaises(ValueError):
+            assign('flow-polymer-to-lit', names, 0)
 
     def test_matrix_result_rejects_failures_and_unexpected_skips(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/controls.yml').read_text())

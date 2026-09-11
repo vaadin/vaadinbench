@@ -58,7 +58,7 @@ jobs:
                 sel="$all"; why="no usable base ref"
               else
                 changed=$(git diff --name-only "$base" HEAD)
-                if echo "$changed" | grep -v '^base/migration' | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|\.github/workflows/(controls|control-stack)\.yml|\.github/scripts/(task-images|agents-image-decision|base-image-decision)\.sh$)'; then
+                if echo "$changed" | grep -v '^base/migration' | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|\.github/workflows/(controls|control-stack)\.yml|\.github/scripts/(task-images|agents-image-decision|base-image-decision)\.sh$|\.github/scripts/control-shards\.py$)'; then
                   sel="$all"; why="base image, Harbor pin or this workflow changed"
                 else
                   sel=$(echo "$changed" | grep -oE '^tasks/[^/]+' | sort -u | tr '\n' ' ' || true)

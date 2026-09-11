@@ -50,8 +50,8 @@ jobs:
                 sel="$all"; why="no usable base ref"
               else
                 changed=$(git diff --name-only "$base" HEAD)
-                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|\.github/workflows/controls\.yml)'; then
-                  sel="$all"; why="base image, Harbor pin or this workflow changed"
+                if echo "$changed" | grep -qE '^(base/|\.dockerignore$|pyproject\.toml$|uv\.lock$|scripts/acme-views/|scripts/(test-acme-views\.sh|run-acme-browser-controls\.sh|sync-acme-views\.py)$|\.github/workflows/controls\.yml)'; then
+                  sel="$all"; why="base image, Harbor pin, workflow or ACME controls changed"
                 else
                   sel=$(echo "$changed" | grep -oE '^tasks/[^/]+' | sort -u | tr '\n' ' ')
                   why="changed tasks"
@@ -113,6 +113,13 @@ jobs:
             tasks/*/tests/Dockerfile
           grep -H '^ARG BASE_IMAGE=' \
             tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
+
+      - name: ACME browser regression controls
+        if: steps.select.outputs.tasks != ''
+        run: |
+          docker run --rm --network none --cpus 2 --memory 4g \
+            --mount "type=bind,src=$PWD,dst=/workspace,readonly" \
+            --entrypoint bash "$BASE_REF" /workspace/scripts/run-acme-browser-controls.sh
 
       - uses: astral-sh/setup-uv@v5
         if: steps.select.outputs.tasks != ''

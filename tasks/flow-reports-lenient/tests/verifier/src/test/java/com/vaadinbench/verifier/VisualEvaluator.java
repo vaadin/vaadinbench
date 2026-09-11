@@ -38,7 +38,7 @@ public final class VisualEvaluator {
         for (String state : List.of("plain")) {
             beforeState.accept(state);
             settle(page);
-            String name = "reports";
+            String name = view();
             List<DesignContract.Measurement> measured = contract.measure(page, state);
             design.addAll(measured);
             for (var m : measured) if (!m.passed()) failures.add(state + "/" + m.check() + "/" + m.property()
@@ -66,7 +66,7 @@ public final class VisualEvaluator {
         }
         Evaluation result = new Evaluation(profile, design, visual, failures);
         Files.writeString(output.resolve("design-evaluation.json"), new GsonBuilder().setPrettyPrinting().create().toJson(result));
-        Files.writeString(output.resolve("visual-report.html"), report(result));
+        Files.writeString(output.resolve("visual-report.html"), report(result, view()));
         return result;
     }
 
@@ -113,6 +113,15 @@ public final class VisualEvaluator {
         return image;
     }
 
+    private static String view() throws IOException {
+        try (InputStream in = VisualEvaluator.class.getClassLoader().getResourceAsStream("design/view.txt")) {
+            if (in == null) throw new IOException("Protected view missing");
+            String view = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
+            if (!List.of("orders", "payroll", "reports").contains(view)) throw new IOException("Unknown view: " + view);
+            return view;
+        }
+    }
+
     private static BufferedImage reference(String name) throws IOException {
         try (InputStream in = VisualEvaluator.class.getClassLoader().getResourceAsStream("design/" + name + ".png")) {
             if (in == null) throw new IOException("Protected reference missing: " + name);
@@ -124,15 +133,15 @@ public final class VisualEvaluator {
     private static String escape(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
-    private static String report(Evaluation result) {
+    private static String report(Evaluation result, String view) {
         StringBuilder html = new StringBuilder("""
-            <!doctype html><meta charset="utf-8"><title>Reports design validation</title>
+            <!doctype html><meta charset="utf-8"><title>ACME design validation</title>
             <style>body{font:16px system-ui;margin:24px;color:#263945}section{display:flex}figure{margin:8px;flex:1}img{width:100%}
             </style>
-            <h1>Reports design validation</h1><p><a href="design-evaluation.json">Complete measurements</a></p>
+            <h1>ACME design validation</h1><p><a href="design-evaluation.json">Complete measurements</a></p>
             """);
         html.append("<p>Profile: ").append(escape(result.profile())).append(". Result: ").append(result.passed() ? "PASS" : "FAIL").append("</p>");
-        for (String state : List.of("reports")) {
+        for (String state : List.of(view)) {
             html.append("<h2>").append(state).append("</h2><section>");
             for (String kind : List.of("expected", "actual", "diff")) html.append("<figure><figcaption>").append(kind)
                     .append("</figcaption><img src='").append(state).append('-').append(kind).append(".png'></figure>");

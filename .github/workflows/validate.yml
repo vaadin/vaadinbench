@@ -183,6 +183,7 @@ jobs:
         run: |
           bash .github/scripts/test-base-image-decision.sh
           python3 .github/scripts/test-image-stacks.py
+          python3 .github/scripts/test-migration-cache-layers.py
 
       - name: Test the verifier entry points and library
         run: bash base/test-verifier.sh

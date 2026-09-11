@@ -7,6 +7,7 @@ WORK=$(mktemp -d "${TMPDIR:-/tmp}/employee-pixels.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
 cd "$ROOT"
 python3 scripts/sync-employee-list.py --check
+python3 scripts/employee-list/test-result-summary.py
 python3 - <<'CANARIES'
 import json
 from pathlib import Path

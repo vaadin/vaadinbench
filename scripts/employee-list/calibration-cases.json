@@ -137,5 +137,13 @@
       "strict": false,
       "lenient": false
     }
+  },
+  {
+    "name": "missing-selected-tab-indicator",
+    "css": "vaadin-tab[selected]::before, vaadin-tab[selected]::after { display:none !important; }",
+    "expected": {
+      "strict": false,
+      "lenient": false
+    }
   }
 ]

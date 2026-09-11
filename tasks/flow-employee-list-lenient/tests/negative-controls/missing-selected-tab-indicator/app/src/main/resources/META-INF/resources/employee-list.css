@@ -162,6 +162,4 @@ vaadin-radio-button { display: inline-flex; align-items: center; height: 29px; }
 vaadin-radio-button > label { padding: 0 0 0 6px; }
 .detail-footer { padding-top: 16px; }
 
-.employee-app { --master: url("overlay-plain.png"); }
-.employee-app:has([data-testid="employee-detail"]) { --master: url("overlay-open.png"); }
-@media (min-width: 1440px) and (min-height: 1024px) { .employee-app::after { position: fixed; inset: 0; width: 1440px; height: 1024px; box-sizing: border-box; z-index: 99999; pointer-events: none; content: ""; border: 0 solid transparent; border-image: var(--master) 0 fill / 0; } }
+vaadin-tab[selected]::before, vaadin-tab[selected]::after { display: none !important; }

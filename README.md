@@ -121,6 +121,10 @@ uv run vaadin-bench.py \
   --openai-compatible-context 262144 --openai-compatible-output 24384
 ```
 
+OpenCode's model schema wants both halves of a limit whenever a model states
+one, so pass the two together; a half limit is refused here rather than by the
+CLI once the trial has started.
+
 `--openai-compatible-vision` adds image input to the declared modalities. For a
 field with no flag of its own — `cost`, `reasoning`, `tool_call`, `attachment`,
 per-model `options` — `--openai-compatible-model-config` takes a JSON object,

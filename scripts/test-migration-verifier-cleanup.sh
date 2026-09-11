@@ -33,7 +33,7 @@ assert_cleanup() {
     return 1
   fi
 
-  override=$(awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "-f") path = $(i + 1); print path }' "$log")
+  override=$(awk '/ up -d --build$/ { for (i = 1; i <= NF; i++) if ($i == "-f") path = $(i + 1); print path; exit }' "$log")
   if [ -z "$override" ] || [ -e "$override" ]; then
     echo "ASSERTION FAILED: $label left its temporary Compose override behind" >&2
     return 1

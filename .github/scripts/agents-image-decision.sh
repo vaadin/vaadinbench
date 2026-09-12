@@ -17,5 +17,9 @@ decision=$(bash "$scripts/base-image-decision.sh" "$1" "$2" "$3")
 old=$(git show "$2:base/agents.Dockerfile" | sed '/^ARG BASE_IMAGE=/d') || rebuild
 current=$(sed '/^ARG BASE_IMAGE=/d' base/agents.Dockerfile)
 [ "$old" = "$current" ] || rebuild
-git diff --quiet "$2" HEAD -- .github/scripts/agents-image-decision.sh || rebuild
+# base/java-api is copied into this image and read by no other, so a change to it
+# alone reuses the base and rebuilds only here. Without this line the base
+# decision would say reuse, agents.Dockerfile would be unchanged, and the new
+# tool would never reach an image.
+git diff --quiet "$2" HEAD -- .github/scripts/agents-image-decision.sh base/java-api || rebuild
 echo "reuse $published"

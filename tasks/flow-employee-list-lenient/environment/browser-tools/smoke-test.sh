@@ -35,5 +35,6 @@ with Image.open(sys.argv[1]) as image:
     image.crop((0, 0, 10, 10)).getpixel((0, 0))
 PY
 file "$work/screen.png"
+test "$(identify -format '%w %h' "$work/screen.png")" = "2880 2048"
 printf '{"ok":true}\n' | jq -e .ok
 printf 'Playwright CLI session, shadow DOM, screenshot and image utilities passed\n'

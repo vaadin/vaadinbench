@@ -29,6 +29,10 @@ rc=0
 mkdir -p /logs/agent
 ui-check --url http://localhost:8193/employees --checks all > /tmp/ui-check-installed.log 2>&1 || rc=$?
 cat /tmp/ui-check-installed.log
+if grep -q 'Playwright Host validation warning' /tmp/ui-check-installed.log; then
+    echo 'Installed checker unexpectedly repeated browser dependency validation'
+    exit 1
+fi
 if [ "$rc" -ne "$expected" ]; then
     echo "Expected ui-check exit $expected, got $rc"
     exit 1

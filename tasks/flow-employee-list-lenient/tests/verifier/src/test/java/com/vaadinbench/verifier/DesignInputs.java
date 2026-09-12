@@ -28,6 +28,9 @@ public final class DesignInputs {
     public String text(String name) throws IOException {
         try (InputStream in = open(name)) { return new String(in.readAllBytes(), StandardCharsets.UTF_8); }
     }
+    void copyImage(String name, Path destination) throws IOException {
+        try (InputStream in = open(name)) { Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING); }
+    }
     public BufferedImage image(String name) throws IOException {
         try (InputStream in = open(name)) {
             BufferedImage image = ImageIO.read(in);

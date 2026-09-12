@@ -29,7 +29,9 @@ public final class UiCheck {
           --output DIR                             Empty directory; default /logs/agent/ui-check-* when writable,
                                                    otherwise a new directory in the system temp directory
           --help                                   Show this help
-        Start/recompile your app before checking; this command only inspects its live URL.
+        Use app-start/app-restart before checking; this command only inspects its live URL.
+        Run --checks all after the first working implementation and again before finishing.
+        Full grouped failures: failures.txt; JSON: .checks[].failures and .errors[].
         Exit codes: 0 selected checks passed, 1 checks failed, 2 invocation/environment error.
         A visual-only pass does not mean that responsive or behavioral checks passed.
         """;
@@ -109,7 +111,7 @@ public final class UiCheck {
                 }
                 CheckResult result = check(browser, options, entry.getKey(), entry.getValue());
                 results.add(result);
-                System.out.printf(Locale.ROOT, "%s: %s (%.1fs)%n", result.group(), result.status(), result.seconds());
+                System.out.printf(Locale.ROOT, "%s / %s: %s (%.1fs)%n", result.group(), result.check(), result.status(), result.seconds());
                 result.failures().stream().limit(6).forEach(f -> System.out.println("  " + f));
                 if (result.failures().size() > 6) System.out.println("  Additional failures in report.json");
             }
@@ -121,6 +123,16 @@ public final class UiCheck {
                 browserVersion, List.copyOf(options.groups()), passed && options.groups().size() == 3,
                 status, seconds(start), results, errors);
         Files.writeString(options.output().resolve("report.json"), new GsonBuilder().setPrettyPrinting().create().toJson(report));
+        StringBuilder summary = new StringBuilder();
+        for (CheckResult result : results) {
+            if (!result.failures().isEmpty()) {
+                summary.append(result.group()).append(" / ").append(result.check()).append("\n");
+                result.failures().forEach(f -> summary.append("  ").append(f).append("\n"));
+            }
+        }
+        errors.forEach(e -> summary.append("Environment error: ").append(e).append("\n"));
+        if (summary.isEmpty()) summary.append("No failures in selected checks.\n");
+        Files.writeString(options.output().resolve("failures.txt"), summary);
         Files.writeString(options.output().resolve("browser.txt"), browserVersion
                 + "\n1440x1024 CSS; DPR 2; en-GB; UTC; light; reduced-motion; font-render-hinting=none\n");
         System.out.println("Selected checks: " + status.toUpperCase(Locale.ROOT) + "; groups: " + String.join(",", options.groups()));
@@ -128,6 +140,7 @@ public final class UiCheck {
         skipped.removeAll(options.groups());
         if (!skipped.isEmpty()) System.out.println("Not checked: " + String.join(",", skipped));
         errors.forEach(e -> System.err.println("  " + e));
+        System.out.println("All failures: " + options.output().resolve("failures.txt"));
         System.out.println("Report: " + options.output().resolve("report.json"));
         return !errors.isEmpty() ? 2 : passed ? 0 : 1;
     }

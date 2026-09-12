@@ -8,6 +8,7 @@ trap 'rm -rf "$WORK"' EXIT
 cd "$ROOT"
 python3 scripts/sync-employee-list.py --check
 python3 scripts/employee-list/test-result-summary.py
+python3 scripts/employee-list/test-app-control.py
 python3 - <<'CANARIES'
 import json
 from pathlib import Path

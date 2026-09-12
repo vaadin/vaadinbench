@@ -196,7 +196,7 @@ and responsive failures early. Fix reported failures using targeted groups, then
 run `--checks all` before finishing. Run `app-restart` after edits so the URL serves
 your latest changes. The checker does not rebuild or restart the application.
 Each run prints its report directory under `/logs/agent/ui-check-*`, with JSON findings,
-reference/actual/diff PNGs, crops of failing SSIM regions and overflow element paths
+reference/actual/diff PNGs for failing visual states, crops of failing SSIM regions and overflow element paths
 (including shadow DOM). Harbor retains these reports with the agent logs. Outside
 Harbor, the command falls back to the system temp directory if `/logs/agent` is
 unavailable or not writable. Use `--help` for individual groups and output options.
@@ -210,13 +210,13 @@ Use `ui-check --list` for individual scenario names, then target one with
 Do not combine `--scenario` and `--checks`. A shared readiness failure blocks the
 remaining selected scenarios; blocked means not evaluated, never passed.
 
-For repeated checks, optionally keep `ui-check --session` running in a terminal
-session and send a JSON array of arguments on each stdin line, for example:
-`["--url","http://localhost:8080/employees","--scenario","selectionCallbacksAndNoPersistence"]`.
-Each request emits `SESSION_RESULT: {"exitCode":0}` (or 1/2 with the same meaning
-as the normal CLI). Wait for that result before editing/restarting the app or
-sending another request. The process reuses the browser but creates fresh contexts;
-inputs are reread per request. Close stdin to stop. Regular one-shot commands also work.
+Regular `ui-check` commands automatically reuse a checker process and Chromium.
+The first invocation starts them; `app-restart` leaves them running. Each scenario
+still gets a fresh browser context, and design inputs are reread for every request.
+Wait for the command to finish before editing or restarting the application.
+Use `ui-check --daemon-status` to inspect the service or `ui-check --daemon-stop`
+to stop it; the next check starts it again. `--cold` disables reuse for diagnostics.
+There is no need to manage a persistent terminal session.
 
 Read `failures.txt` in the printed report directory for all failures grouped by
 scenario. For structured output, use the documented JSON shape:

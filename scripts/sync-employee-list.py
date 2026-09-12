@@ -41,6 +41,7 @@ def strict_files():
             result[checker / 'src' / path.name] = data
     result[checker / 'src/UiCheck.java'] = (ROOT / 'scripts/employee-list/UiCheck.java').read_bytes()
     result[checker / 'build.sh'] = (ROOT / 'scripts/employee-list/build-ui-check.sh').read_bytes()
+    result[checker / 'ui-check-launcher.sh'] = (ROOT / 'scripts/employee-list/ui-check-launcher.sh').read_bytes()
     result[checker / 'profile.txt'] = b'strict\n'
     result[checker / 'NOTICE.md'] = result[Path('environment/design/NOTICE.md')]
     fixture = json.loads(result[Path('environment/design/fixture.json')])

@@ -33,6 +33,11 @@ if grep -q 'Playwright Host validation warning' /tmp/ui-check-installed.log; the
     echo 'Installed checker unexpectedly repeated browser dependency validation'
     exit 1
 fi
+daemon_log=$(ui-check --daemon-status | sed -n 's/^Log: //p')
+if [ -z "$daemon_log" ] || grep -q 'Playwright Host validation warning' "$daemon_log"; then
+    echo 'Persistent checker unexpectedly repeated browser dependency validation'
+    exit 1
+fi
 if [ "$rc" -ne "$expected" ]; then
     echo "Expected ui-check exit $expected, got $rc"
     exit 1
@@ -56,6 +61,8 @@ print('Installed CLI status, profile and coverage verified')
 PY
 
 if [ "$expected" = 0 ]; then
+    bash /tmp/benchmark-installed-ui.sh /opt/vaadinbench/ui-check/ui-check \
+        http://localhost:8193/employees /app/design /logs/agent/ui-check-benchmark "$profile" 1
     tool=/opt/vaadinbench/ui-check
     checker_cp="$tool/ui-check.jar:$(cat "$tool/classpath.txt")"
     mkdir -p /tmp/ui-check-control-classes

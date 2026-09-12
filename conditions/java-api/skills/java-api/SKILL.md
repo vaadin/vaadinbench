@@ -47,6 +47,11 @@ the artifact and version it came from.
 
 **Nested classes need no `$`.** Write `Grid.Column`, not `Grid$Column`.
 
+**Signatures are complete.** Checked exceptions are part of what is printed, so
+`void save() throws IOException` is what you see; a class that is
+package-private, or nested inside one, is marked `[not public API]`, because code
+in another package cannot name it however useful its methods look.
+
 ## How to use it while working
 
 Look a class up *before* writing against it, not after the code is finished.

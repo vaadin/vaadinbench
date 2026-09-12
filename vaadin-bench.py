@@ -285,7 +285,7 @@ class Condition:
 
     def summary(self) -> str:
         parts = []
-        if self.skills:
+        if self.skills or self.local_skills is not None:
             parts.append("skills")
         if self.mcp_config:
             parts.append("mcp")

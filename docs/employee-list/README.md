@@ -67,10 +67,11 @@ files, validates JSON, and checks profile/calibration formats.
 ## Agent-facing UI checker
 
 Both employee-list task images install `ui-check` on PATH. The task version is
-3.6.0: version 3.2.0 introduced ui-check; 3.3.0 added browser/image utilities;
+3.7.0: version 3.2.0 introduced ui-check; 3.3.0 added browser/image utilities;
 3.4.0 added safe app lifecycle commands; 3.5.0 adds faster checks, scenario
 selection, reusable sessions, and ImageMagick; 3.6.0 makes reuse automatic and
-reduces passing-state artifacts.
+reduces passing-state artifacts; 3.7.0 adds atomic reports, busy status, faster
+conclusive interaction failures, and the Vaadin frontend Node version.
 Keep these tool configurations in separate result cohorts.
 Every agent condition receives the same command. It uses the task's installed
 strict/lenient profile by default and reads the public `/app/design` inputs.
@@ -203,7 +204,7 @@ gate, so its pass rate must not be pooled with 3.0.0.
 ### Task-specific browser utilities (3.3.0)
 
 Only the strict and lenient employee-list **task environments** install
-`@playwright/cli` 0.1.19, Node 24.14.0, Pillow, jq and file. The shared agents
+`@playwright/cli` 0.1.19, Node 24.17.0, Pillow, jq and file. The shared agents
 image and condition definitions are unchanged: every agent running either task
 can use the CLI on PATH, while other tasks do not receive it.
 
@@ -245,7 +246,7 @@ No additional component recommendations are exposed.
 Run `python3 scripts/employee-list/test-app-control.py` for lifecycle controls
 covering repeated start/stop, restart, readiness timeout, failed compilation,
 an occupied port, and stale process identity. These also run in the employee-list
-suite on Linux (skipped on macOS). Rebuild task images to use revision 3.6.0; shared images are unchanged.
+suite on Linux (skipped on macOS). Rebuild task images to use revision 3.7.0; shared images are unchanged.
 
 ### Checker performance and iteration (3.5.0)
 
@@ -286,7 +287,7 @@ component checks, and protected inputs are unchanged. DOM locator evaluation was
 measured separately; it remains unchanged to preserve Playwright's visibility and
 shadow/role selector semantics.
 
-### Automatic checker reuse (3.6.0)
+### Automatic checker reuse and iteration safety (3.6.0–3.7.0)
 
 Ordinary `ui-check` calls start a persistent checker lazily and reuse its Java,
 Playwright, and Chromium processes. The Vaadin application is separate:
@@ -298,6 +299,13 @@ Use `ui-check --daemon-status` to inspect it, `ui-check --daemon-stop` to stop i
 and `ui-check --cold --url URL ...` to measure an isolated invocation. The explicit
 stdin `--session` protocol remains available for existing integrations. Automatic
 reuse is local to the task; it does not expose a browser remote-debugging endpoint.
+Status reports `busy` without probing the single-threaded daemon while a check holds
+the run lock. Reports are written under a hidden sibling and atomically renamed to
+their final `ui-check-*` path after `report.json` is complete.
+
+Readiness and navigation retain their 15-second allowance. After readiness succeeds,
+agent-checker actions use a four-second timeout so missing or pointer-blocked controls
+return promptly. The protected verifier's timing behavior is unchanged.
 
 Agent checks write full comparison images only for failing visual states, with
 regional crops for failed SSIM regions. Passing states retain all measurements and

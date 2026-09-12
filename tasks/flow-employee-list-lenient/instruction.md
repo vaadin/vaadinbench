@@ -200,7 +200,9 @@ Each run prints its report directory under `/logs/agent/ui-check-*`, with JSON f
 reference/actual/diff PNGs for failing visual states, crops of failing SSIM regions and overflow element paths
 (including shadow DOM). Harbor retains these reports with the agent logs. Outside
 Harbor, the command falls back to the system temp directory if `/logs/agent` is
-unavailable or not writable. Use `--help` for individual groups and output options.
+unavailable or not writable. A report directory appears only after the run finishes,
+so glob results never expose a partially written report. Use `--help` for individual
+groups and output options.
 Exit 0 means the selected checks passed; 1 means failed checks; 2 means an
 invocation/environment error. A partial check does not establish overall success.
 The summary lists unresolved scenarios and reports completion only for a passing
@@ -216,7 +218,8 @@ The first invocation starts them; `app-restart` leaves them running. Each scenar
 still gets a fresh browser context, and design inputs are reread for every request.
 Wait for the command to finish before editing or restarting the application.
 Use `ui-check --daemon-status` to inspect the service or `ui-check --daemon-stop`
-to stop it; the next check starts it again. `--cold` disables reuse for diagnostics.
+to stop it; status reports `busy` while another command is checking. The next check
+starts a stopped service again. `--cold` disables reuse for diagnostics.
 There is no need to manage a persistent terminal session.
 
 Read `failures.txt` in the printed report directory for all failures grouped by

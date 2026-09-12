@@ -57,6 +57,15 @@ daemon_responds() {
         --data '{"action":"ping","args":[]}' http://localhost/ | jq -e '.exitCode == 0' >/dev/null
 }
 
+run_is_busy() {
+    exec 8>"$RUN_LOCK"
+    if flock -n 8; then
+        flock -u 8
+        return 1
+    fi
+    return 0
+}
+
 start_daemon() {
     command -v flock >/dev/null || { echo 'ui-check: flock is required for persistent checker reuse' >&2; return 2; }
     command -v setsid >/dev/null || { echo 'ui-check: setsid is required for persistent checker reuse' >&2; return 2; }
@@ -118,6 +127,13 @@ case ${1:-} in
     --daemon-status)
         [[ $# == 1 ]] || { usage >&2; exit 2; }
         lock_state
+        if daemon_running && run_is_busy; then
+            read_record
+            echo "ui-check daemon busy (PID $DAEMON_PID)"
+            echo "Log: $LOG"
+            flock -u 9
+            exit 0
+        fi
         if daemon_responds; then
             echo "ui-check daemon running (PID $DAEMON_PID)"
             echo "Log: $LOG"

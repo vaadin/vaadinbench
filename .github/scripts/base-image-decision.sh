@@ -51,14 +51,15 @@ event=${1:-}
 revision=${2:-}
 stack=${3:-modern}
 
-# The paths whose content the base image reads, and the one path under them that
-# only the agents image reads. These mirror the trigger paths of
+# The paths whose content the base image reads, and the few paths under them that
+# only the agents image reads. base/java-api is one of those: nothing in the
+# warm-up opens it, and only base/agents.Dockerfile copies it in. These mirror the trigger paths of
 # .github/workflows/base-image.yml — test-base-image-decision.sh reads that
 # workflow and fails if a trigger path is in neither list, so a new input cannot
 # be added there and silently skipped here.
 is_agents_only() {
     case $1 in
-    base/agents.Dockerfile | .github/scripts/agents-image-decision.sh) return 0 ;;
+    base/agents.Dockerfile | base/java-api | .github/scripts/agents-image-decision.sh) return 0 ;;
     esac
     return 1
 }

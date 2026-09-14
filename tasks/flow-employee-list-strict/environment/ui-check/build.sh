@@ -16,3 +16,6 @@ jar --create --file "$TOOL_DIR/ui-check.jar" -C "$TOOL_DIR/classes" .
 cp "$(cd "$(dirname "$0")" && pwd)/ui-check-launcher.sh" "$TOOL_DIR/ui-check"
 chmod +x "$TOOL_DIR/ui-check"
 "$TOOL_DIR/ui-check" --help
+# Keep implementation details out of the agent image after compiling the
+# standalone artifact. The launcher, profile and dependency classpath remain.
+rm -rf "$TOOL_DIR/classes" "$TOOL_DIR/src" "$TOOL_DIR/build.sh" "$TOOL_DIR/ui-check-launcher.sh"

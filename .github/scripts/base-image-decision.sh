@@ -58,7 +58,7 @@ stack=${3:-modern}
 # be added there and silently skipped here.
 is_agents_only() {
     case $1 in
-    base/agents.Dockerfile | .github/scripts/agents-image-decision.sh) return 0 ;;
+    base/agents.Dockerfile | base/ui-check/* | .github/scripts/agents-image-decision.sh) return 0 ;;
     esac
     return 1
 }

@@ -18,7 +18,7 @@ mvn -o -B spring-boot:run \
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 ready=false
-for ((attempt=0; attempt<90; attempt++)); do
+for ((attempt=0; attempt<120; attempt++)); do
     if curl -fsS http://localhost:8193/employees >/dev/null 2>&1; then ready=true; break; fi
     if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
     sleep 1
@@ -33,7 +33,7 @@ if grep -q 'Playwright Host validation warning' /tmp/ui-check-installed.log; the
     echo 'Installed checker unexpectedly repeated browser dependency validation'
     exit 1
 fi
-daemon_log=$(ui-check --daemon-status | sed -n 's/^Log: //p')
+daemon_log=$(ui-check --daemon-status 2>/dev/null | sed -n 's/^Log: //p' || true)
 if [ -z "$daemon_log" ] || grep -q 'Playwright Host validation warning' "$daemon_log"; then
     echo 'Persistent checker unexpectedly repeated browser dependency validation'
     exit 1

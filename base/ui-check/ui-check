@@ -12,6 +12,6 @@ while [[ -L "$SOURCE" ]]; do
     [[ $SOURCE = /* ]] || SOURCE="$SOURCE_DIR/$SOURCE"
 done
 TOOL_DIR=$(cd "$(dirname "$SOURCE")" && pwd)
-CLASSPATH="$TOOL_DIR/ui-check.jar:$(cat "$TOOL_DIR/classpath.txt")"
+CLASSPATH="$TOOL_DIR/ui-check.jar:$TOOL_DIR/lib/*"
 exec java -Djava.awt.headless=true -Dui.check.home="$TOOL_DIR" \
     -cp "$CLASSPATH" com.vaadinbench.verifier.UiCheck "$@"

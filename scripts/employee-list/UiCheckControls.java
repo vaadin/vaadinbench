@@ -205,6 +205,14 @@ public final class UiCheckControls {
         require(options.output().equals(explicit), "Explicit output location ignored");
         require(!Files.exists(explicit) && Files.isDirectory(options.workingOutput()), "Explicit output published before completion");
         Files.delete(options.workingOutput());
+        Path caller = Files.createDirectories(output.resolve("caller")).toAbsolutePath();
+        Path relativeOutput = Path.of("relative-output");
+        Path relativeDesign = caller.relativize(design.toAbsolutePath());
+        var relative = UiCheck.parse(new String[]{"--url", url, "--design", relativeDesign.toString(),
+                "--output", relativeOutput.toString()}, caller);
+        require(relative.design().equals(design.toAbsolutePath().normalize()), "Daemon caller-relative design path ignored");
+        require(relative.output().equals(caller.resolve(relativeOutput)), "Daemon caller-relative output path ignored");
+        Files.delete(relative.workingOutput());
         Files.createDirectories(explicit);
         Files.writeString(explicit.resolve("report.json"), "existing report");
         try {

@@ -36,12 +36,26 @@ ui-check uses a local persistent checker by default. The checker survives app-re
 EOF
 }
 
+process_running() {
+    local pid=$1 state
+    kill -0 "$pid" 2>/dev/null || return 1
+    if [[ -r /proc/$pid/stat ]]; then
+        # kill -0 also succeeds for an exited child that PID 1 has not reaped.
+        # Field 3 follows the final ')' of the process name in /proc/<pid>/stat.
+        state=$(sed -n 's/^.*) \([^ ]\).*/\1/p' "/proc/$pid/stat") || return 1
+    else
+        state=$(ps -o stat= -p "$pid" 2>/dev/null) || return 1
+        state=${state#${state%%[![:space:]]*}}
+    fi
+    [[ -n $state && $state != Z* ]]
+}
+
 daemon_running() {
     [[ -r "$RECORD" && -S "$SOCKET" ]] || return 1
     local pid token
     read -r pid token < "$RECORD" || return 1
     [[ $pid =~ ^[0-9]+$ && -n $token ]] || return 1
-    kill -0 "$pid" 2>/dev/null
+    process_running "$pid"
 }
 
 read_record() {
@@ -85,13 +99,13 @@ start_daemon() {
     local pid=$!
     printf '%s %s\n' "$pid" "$token" > "$RECORD"
     for attempt in $(seq 1 100); do
-        if [[ -S "$SOCKET" ]] && kill -0 "$pid" 2>/dev/null; then
+        if [[ -S "$SOCKET" ]] && process_running "$pid"; then
             DAEMON_PID=$pid
             DAEMON_TOKEN=$token
             flock -u 9
             return 0
         fi
-        if ! kill -0 "$pid" 2>/dev/null; then
+        if ! process_running "$pid"; then
             rm -f "$SOCKET" "$RECORD"
             echo "ui-check: persistent checker failed to start; see $LOG" >&2
             flock -u 9
@@ -160,10 +174,10 @@ case ${1:-} in
                 -H "X-Ui-Check-Token: $DAEMON_TOKEN" -H 'Content-Type: application/json' \
                 --data '{"action":"stop","args":[]}' http://localhost/ | jq -e '.exitCode == 0' >/dev/null
             for _ in $(seq 1 100); do
-                kill -0 "$DAEMON_PID" 2>/dev/null || break
+                process_running "$DAEMON_PID" || break
                 sleep .05
             done
-            if kill -0 "$DAEMON_PID" 2>/dev/null; then
+            if process_running "$DAEMON_PID"; then
                 echo "ui-check: persistent checker did not stop; see $LOG" >&2
                 flock -u 9
                 exit 2

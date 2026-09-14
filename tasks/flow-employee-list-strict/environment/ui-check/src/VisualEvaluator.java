@@ -37,15 +37,11 @@ public final class VisualEvaluator {
     }
     private static Evaluation evaluate(Page page, String profile, Path output, DesignInputs inputs,
                                        java.util.function.Consumer<String> beforeState) throws IOException {
-        return evaluate(page, profile, output, inputs, beforeState, new CheckTimings());
-    }
-    static Evaluation evaluate(Page page, String profile, Path output, DesignInputs inputs,
-                               java.util.function.Consumer<String> beforeState, CheckTimings timings) throws IOException {
-        return evaluate(page, profile, output, inputs, beforeState, timings, false);
+        return evaluate(page, profile, output, inputs, beforeState, false);
     }
     // Agent checks can omit successful-state image artifacts; grading keeps its full archive.
     static Evaluation evaluate(Page page, String profile, Path output, DesignInputs inputs,
-                               java.util.function.Consumer<String> beforeState, CheckTimings timings,
+                               java.util.function.Consumer<String> beforeState,
                                boolean failureArtifactsOnly) throws IOException {
         Files.createDirectories(output);
         Set<String> capturedStates = new HashSet<>();
@@ -60,29 +56,23 @@ public final class VisualEvaluator {
                 page.getByTestId("employee-detail").waitFor();
             }
             beforeState.accept(state);
-            try (var timer = timings.start("visual.readiness")) { settle(page); }
-            try (var timer = timings.start("visual.components")) { failures.addAll(ComponentContract.validate(page,state)); }
+            settle(page);
+            failures.addAll(ComponentContract.validate(page,state));
             String name = state.equals("plain") ? "employee-list-plain" : "employee-list";
-            List<DesignContract.Measurement> measured;
-            try (var timer = timings.start("visual.dom")) { measured = contract.measure(page, state); }
+            List<DesignContract.Measurement> measured = contract.measure(page, state);
             design.addAll(measured);
             for (var m : measured) if (!m.passed()) failures.add(state + "/" + m.check() + "/" + m.property()
                     + ": expected " + m.expected() + ", got " + m.actual() + " (tolerance " + m.tolerance() + ")");
-            try (var timer = timings.start("visual.imageSubstitution")) {
-                if (!hasNoLargeImages(page)) failures.add(state + ": large image/canvas/embedded screenshot substitute");
-            }
-            byte[] first, second;
-            try (var timer = timings.start("visual.screenshots")) {
-                first = page.screenshot(new Page.ScreenshotOptions().setAnimations(ScreenshotAnimations.DISABLED));
-                settle(page);
-                second = page.screenshot(new Page.ScreenshotOptions().setAnimations(ScreenshotAnimations.DISABLED));
-            }
+            if (!hasNoLargeImages(page)) failures.add(state + ": large image/canvas/embedded screenshot substitute");
+
+            byte[] first = page.screenshot(new Page.ScreenshotOptions().setAnimations(ScreenshotAnimations.DISABLED));
+            settle(page);
+            byte[] second = page.screenshot(new Page.ScreenshotOptions().setAnimations(ScreenshotAnimations.DISABLED));
+
             if (!Arrays.equals(first, second)) failures.add(state + ": consecutive captures are not stable");
-            BufferedImage expected, actual;
-            try (var timer = timings.start("visual.decode")) {
-                expected = inputs.image(name + ".png");
-                actual = ImageIO.read(new ByteArrayInputStream(second));
-            }
+            BufferedImage expected = inputs.image(name + ".png");
+            BufferedImage actual = ImageIO.read(new ByteArrayInputStream(second));
+
             if (actual == null || actual.getWidth() != 2880 || actual.getHeight() != 2048) {
                 failures.add(state + ": expected an opaque 2880x2048 capture");
                 Files.write(output.resolve(name + "-actual.png"), second);
@@ -94,19 +84,17 @@ public final class VisualEvaluator {
                         + ": expected " + m.expected() + ", got " + m.actual() + " (tolerance " + m.tolerance() + ")");
             }
             var regions = contract.regions(state);
-            double[] scores;
-            try (var timer = timings.start("visual.ssim")) { scores = StructuralSimilarity.compareAll(expected, actual, regions); }
+            double[] scores = regions.stream().mapToDouble(region ->
+                    StructuralSimilarity.compare(expected, actual, region)).toArray();
             boolean stateFailed = failures.size() > failuresBeforeState;
             for (double score : scores) if (!(score >= contract.minimumSsim())) stateFailed = true;
             BufferedImage difference = null;
             if (!failureArtifactsOnly || stateFailed) {
-                try (var timer = timings.start("visual.artifacts")) {
-                    Files.write(output.resolve(name + "-actual.png"), second);
-                    inputs.copyImage(name + ".png", output.resolve(name + "-expected.png"));
-                    difference = diff(expected, actual);
-                    ImageIO.write(difference, "png", output.resolve(name + "-diff.png").toFile());
-                    capturedStates.add(name);
-                }
+                Files.write(output.resolve(name + "-actual.png"), second);
+                inputs.copyImage(name + ".png", output.resolve(name + "-expected.png"));
+                difference = diff(expected, actual);
+                ImageIO.write(difference, "png", output.resolve(name + "-diff.png").toFile());
+                capturedStates.add(name);
             }
             for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
                 StructuralSimilarity.Region region = regions.get(regionIndex);
@@ -115,9 +103,7 @@ public final class VisualEvaluator {
                 visual.add(new VisualMeasurement(state, region.name(), ssim, contract.minimumSsim(), passed));
                 if (!passed) {
                     failures.add(state + "/" + region.name() + ": SSIM " + ssim + " < " + contract.minimumSsim());
-                    try (var timer = timings.start("visual.artifacts")) {
-                        writeRegion(output, state, region, expected, actual, difference);
-                    }
+                    writeRegion(output, state, region, expected, actual, difference);
                 }
             }
         }

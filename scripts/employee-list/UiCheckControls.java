@@ -81,7 +81,7 @@ public final class UiCheckControls {
                         if (variant.equals("shifted")) page.addStyleTag(new Page.AddStyleTagOptions().setContent("body{transform:translateX(8px)!important}"));
                         Path destination = output.resolve(variant + (publicInputs ? "-public" : "-protected"));
                         evaluations.add(VisualEvaluator.evaluate(page, "strict", destination,
-                                publicInputs ? inputs : DesignInputs.protectedResources(), state -> {}, new CheckTimings(), publicInputs));
+                                publicInputs ? inputs : DesignInputs.protectedResources(), state -> {}, publicInputs));
                     }
                 }
                 require(evaluations.get(0).equals(evaluations.get(1)), variant + ": public and protected evaluations differ");
@@ -113,12 +113,12 @@ public final class UiCheckControls {
         long skipped = report.getAsJsonArray("checks").asList().stream()
                 .filter(e -> e.getAsJsonObject().get("status").getAsString().equals("skipped")).count();
         require(skipped == 2, "Missing skipped check records");
-        performanceControls(design, url, output);
+        scenarioControls(design, url, output);
         environmentErrors(design, url, output);
         System.out.println("UI checker controls passed");
     }
 
-    static void performanceControls(Path design, String url, Path output) throws Exception {
+    static void scenarioControls(Path design, String url, Path output) throws Exception {
         for (String[] bad : List.of(new String[]{"--scenario", "noSuchScenario"},
                 new String[]{"--checks", "visual", "--scenario", "bothReferenceScreenshots"})) {
             List<String> args = new ArrayList<>(List.of("--url", url, "--design", design.toString()));
@@ -138,44 +138,29 @@ public final class UiCheckControls {
             try (var body = exchange.getResponseBody()) { body.write(html); }
         });
         server.start();
-        try (Playwright pw = Playwright.create(); Browser browser = BrowserSession.launch(pw)) {
+        try {
             Path blockedDir = output.resolve("blocked-prerequisites");
             var blocked = UiCheck.parse(new String[]{"--url", "http://127.0.0.1:" + server.getAddress().getPort() + "/employees",
                     "--design", design.toString(), "--output", blockedDir.toString()});
-            require(UiCheck.run(blocked, new CheckTimings(), browser) == 1, "Blocked run passed");
+            require(UiCheck.run(blocked) == 1, "Blocked run passed");
             var report = JsonParser.parseString(Files.readString(blockedDir.resolve("report.json"))).getAsJsonObject();
             require(requests.get() == 1, "Repeated readiness requests: " + requests.get());
             require(report.getAsJsonArray("checks").asList().stream().filter(e ->
                     e.getAsJsonObject().get("status").getAsString().equals("blocked")).count() == 5,
                     "Dependent scenarios were not blocked");
             require(!report.get("allChecksPassed").getAsBoolean(), "Blocked run claims completion");
-            require(browser.contexts().isEmpty(), "Failed run leaked a context");
             for (int i=0; i<2; i++) {
                 Path selectedDir = output.resolve("single-scenario-" + i);
                 var single = UiCheck.parse(new String[]{"--url", url, "--design", design.toString(),
                         "--scenario", "tableScrollKeepsShellAndHeaderStill", "--output", selectedDir.toString()});
-                require(UiCheck.run(single, new CheckTimings(), browser) == 0, "Single scenario failed");
-                require(browser.contexts().isEmpty(), "Session reused page/context state");
+                require(UiCheck.run(single) == 0, "Single scenario failed");
                 var selectedReport = JsonParser.parseString(Files.readString(selectedDir.resolve("report.json"))).getAsJsonObject();
                 require(!selectedReport.get("allChecksPassed").getAsBoolean(), "Single scenario claims completion");
                 require(selectedReport.getAsJsonArray("checks").asList().stream().filter(e ->
                         e.getAsJsonObject().get("status").getAsString().equals("skipped")).count() == 5, "Wrong scenario selection");
-                require(selectedReport.getAsJsonObject("timings").has("navigation"), "Missing phase timing");
             }
         } finally { server.stop(0); }
-        Process session = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin/java").toString(),
-                "-Dui.check.home=" + System.getProperty("ui.check.home"), "-cp", System.getProperty("java.class.path"),
-                UiCheck.class.getName(), "--session").redirectErrorStream(true).start();
-        try (var writer = new java.io.OutputStreamWriter(session.getOutputStream(), StandardCharsets.UTF_8)) {
-            writer.write("[42]\n");
-            writer.write(new Gson().toJson(List.of("--url", url, "--design", design.toString(), "--scenario",
-                    "tableScrollKeepsShellAndHeaderStill", "--output", output.resolve("session-protocol").toString())) + "\n");
-        }
-        String sessionLog = new String(session.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        require(session.waitFor() == 0, "Session failed: " + sessionLog);
-        require(sessionLog.contains("SESSION_RESULT: {\"exitCode\":2}") && sessionLog.contains("SESSION_RESULT: {\"exitCode\":0}"),
-                "Session did not recover from invalid request: " + sessionLog);
-        System.out.println("Performance controls passed: readiness once, individual scenarios, session isolation and protocol");
+        System.out.println("Scenario controls passed: readiness once and individual selection");
     }
 
     static void outputDirectories(Path design, String url, Path output) throws Exception {
@@ -205,14 +190,6 @@ public final class UiCheckControls {
         require(options.output().equals(explicit), "Explicit output location ignored");
         require(!Files.exists(explicit) && Files.isDirectory(options.workingOutput()), "Explicit output published before completion");
         Files.delete(options.workingOutput());
-        Path caller = Files.createDirectories(output.resolve("caller")).toAbsolutePath();
-        Path relativeOutput = Path.of("relative-output");
-        Path relativeDesign = caller.relativize(design.toAbsolutePath());
-        var relative = UiCheck.parse(new String[]{"--url", url, "--design", relativeDesign.toString(),
-                "--output", relativeOutput.toString()}, caller);
-        require(relative.design().equals(design.toAbsolutePath().normalize()), "Daemon caller-relative design path ignored");
-        require(relative.output().equals(caller.resolve(relativeOutput)), "Daemon caller-relative output path ignored");
-        Files.delete(relative.workingOutput());
         Files.createDirectories(explicit);
         Files.writeString(explicit.resolve("report.json"), "existing report");
         try {

@@ -213,14 +213,9 @@ Use `ui-check --list` for individual scenario names, then target one with
 Do not combine `--scenario` and `--checks`. A shared readiness failure blocks the
 remaining selected scenarios; blocked means not evaluated, never passed.
 
-Regular `ui-check` commands automatically reuse a checker process and Chromium.
-The first invocation starts them; `app-restart` leaves them running. Each scenario
-still gets a fresh browser context, and design inputs are reread for every request.
-Wait for the command to finish before editing or restarting the application.
-Use `ui-check --daemon-status` to inspect the service or `ui-check --daemon-stop`
-to stop it; status reports `busy` while another command is checking. The next check
-starts a stopped service again. `--cold` disables reuse for diagnostics.
-There is no need to manage a persistent terminal session.
+Each invocation starts and closes its own checker and browser. Each scenario gets
+a fresh browser context. Wait for the command to finish before editing or
+restarting the application.
 
 Read `failures.txt` in the printed report directory for all failures grouped by
 scenario. For structured output, use the documented JSON shape:

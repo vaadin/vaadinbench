@@ -35,14 +35,10 @@ final class BrowserSession {
         open(page, url, null);
     }
     static void open(Page page, String url, Path diagnosticFile) {
-        open(page, url, diagnosticFile, new CheckTimings());
-    }
-    static void open(Page page, String url, Path diagnosticFile, CheckTimings timings) {
-        try (var timer = timings.start("navigation")) {
-            try { page.navigate(url); }
-            catch (PlaywrightException error) { throw new NavigationException("Cannot navigate to " + url, error); }
-        }
-        try (var timer = timings.start("readiness")) { ready(page, diagnosticFile); }
+        try { page.navigate(url); }
+        catch (PlaywrightException error) { throw new NavigationException("Cannot navigate to " + url, error); }
+
+        ready(page, diagnosticFile);
     }
     private static void ready(Page page, Path diagnosticFile) {
         try {

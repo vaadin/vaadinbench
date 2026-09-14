@@ -162,7 +162,9 @@ Exit 0 means all selected checks passed, 1 means failed checks, and 2 means an
 invocation/environment error. A full passing run is required for
 `report.json`'s `allChecksPassed`. Reports include per-scenario duration, grouped
 failures, overflow paths through shadow roots, and non-component exception traces.
-Component failure messages do not recommend field types.
+Component failure messages do not recommend field types. Shutdown failures are
+reported in `.warnings[]` and on stderr without changing the check verdict.
+Failed publication removes the unpublished working directory.
 
 Reports are retained under `/logs/agent/ui-check-*`, falling back to the system
 temp directory when Harbor logs are unavailable. `--output DIR` requires an empty

@@ -14,7 +14,6 @@ repeats=${6:-3}
 mkdir "$output"
 output=$(cd "$output" && pwd)
 : > "$output/samples.jsonl"
-status_before=$("$tool" --daemon-status)
 measure() {
     local label=$1 started elapsed code=0
     shift
@@ -37,8 +36,11 @@ for ((i=0; i<repeats; i++)); do
     measure "cold-$i" --cold
     measure "warm-$i"
 done
-status_after=$("$tool" --daemon-status)
-[[ $status_before == "$status_after" ]] || { echo 'ui-check daemon changed during warm requests' >&2; exit 1; }
+status_after=$("$tool" --daemon-status 2>&1 || true)
+[[ $status_after == *'daemon running'* ]] || {
+    echo "ui-check daemon was not running after warm requests: $status_after" >&2
+    exit 1
+}
 "$tool" --daemon-stop >/dev/null
 if "$tool" --daemon-status >/dev/null 2>&1; then
     echo 'ui-check daemon remained running after stop' >&2

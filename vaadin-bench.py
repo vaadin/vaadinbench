@@ -250,14 +250,23 @@ class Condition:
     skills: tuple[str, ...]
     mcp_config: Path | None
     claude_plugins: tuple[str, ...]
+    # A skills directory committed inside the condition, for a skill about this
+    # repository's own tooling. skills.txt cannot name one: it pins a commit in
+    # another repository, which is the right rule for a skill that is developed
+    # elsewhere and the wrong one for a skill whose subject is a file in this
+    # tree — the pin would be a second copy of this commit, able to drift from
+    # the tool it describes. Harbor takes a directory for `--skill` either way.
+    local_skills: Path | None
 
     @classmethod
     def load(cls, directory: Path) -> Condition:
+        local = directory / "skills"
         return cls(
             name=directory.name,
             skills=_lines(directory / "skills.txt"),
             mcp_config=(directory / "mcp.json") if (directory / "mcp.json").is_file() else None,
             claude_plugins=_lines(directory / "claude-plugins.txt"),
+            local_skills=local if local.is_dir() else None,
         )
 
     def applies_to(self, agent: Agent) -> bool:
@@ -276,7 +285,7 @@ class Condition:
 
     def summary(self) -> str:
         parts = []
-        if self.skills:
+        if self.skills or self.local_skills is not None:
             parts.append("skills")
         if self.mcp_config:
             parts.append("mcp")
@@ -440,6 +449,8 @@ def harbor_command(
         cmd += ["-m", model]
     for skill in condition.skills:
         cmd += ["--skill", resolve_skill(skill)]
+    if condition.local_skills is not None:
+        cmd += ["--skill", str(condition.local_skills.relative_to(ROOT))]
     if condition.mcp_config is not None:
         cmd += ["--mcp-config", str(condition.mcp_config.relative_to(ROOT))]
     # The agent phase reaches its provider's API and the condition's MCP server,

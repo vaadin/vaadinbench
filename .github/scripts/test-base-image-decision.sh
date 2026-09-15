@@ -113,6 +113,7 @@ check "verifier entry"     rebuild tasks/flow-new-view/tests/test.sh
 
 # The agents Dockerfile alone, and a change to neither, reuse it.
 check "agents Dockerfile"  reuse   base/agents.Dockerfile
+check "java-api tool"      reuse   base/java-api
 check "nothing relevant"   reuse   README.md
 check "nothing at all"     reuse   ""
 check "agents on a PR"     reuse   base/agents.Dockerfile pull_request

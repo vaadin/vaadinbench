@@ -185,6 +185,13 @@ jobs:
           python3 .github/scripts/test-image-stacks.py
           python3 .github/scripts/test-migration-cache-layers.py
 
+      # The API lookup the agent images carry, against a hierarchy compiled in
+      # the test: that an inherited method is listed, that an override is listed
+      # once, that a private member never is, and that only the classpath given
+      # to it can answer — a newer copy in the Maven cache must not.
+      - name: Test the java-api lookup
+        run: bash scripts/test-java-api.sh
+
       - name: Test the verifier entry points and library
         run: bash base/test-verifier.sh
       - name: Check migration build gate

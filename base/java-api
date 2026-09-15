@@ -76,7 +76,9 @@ class ClassFile:
         self.interfaces = [self._class_name(self._u2()) for _ in range(self._u2())]
         self.fields = [self._member() for _ in range(self._u2())]
         self.methods = [self._member() for _ in range(self._u2())]
-        self.signature = self._attributes().get("Signature")
+        attributes = self._attributes()
+        self.signature = attributes.get("Signature")
+        self.exports = attributes.get("Module", set())
 
     # -- byte reader
 
@@ -110,8 +112,8 @@ class ClassFile:
                 size = CONSTANT_SIZES.get(tag)
                 if size is None:
                     raise ValueError("unknown constant pool tag %d" % tag)
-                if tag == 7:
-                    self.pool[index] = ("class", self._u2())
+                if tag in (7, 19, 20):
+                    self.pool[index] = (tag, self._u2())
                 else:
                     self.pos += size
             index += 2 if tag in (5, 6) else 1
@@ -145,6 +147,21 @@ class ClassFile:
                 end = self.pos + length
                 found["Exceptions"] = [self._class_name(self._u2())
                                        for _ in range(self._u2())]
+                self.pos = end
+            elif name == "Module":
+                end = self.pos + length
+                self.pos += 6  # module name, flags, version
+                requires = self._u2()
+                self.pos += 6 * requires
+                exports = set()
+                for _ in range(self._u2()):
+                    package = self._class_name(self._u2()).replace("/", ".")
+                    self._u2()  # exports flags
+                    targets = self._u2()
+                    self.pos += 2 * targets
+                    if targets == 0:  # qualified exports exclude ordinary apps
+                        exports.add(package)
+                found["Module"] = exports
                 self.pos = end
             elif name == "Deprecated":
                 found["Deprecated"] = True
@@ -383,7 +400,8 @@ def erasure(descriptor):
 
 class Index:
     """classes.tsv is `fqcn<TAB>source id[<TAB>archive member]`, sources.tsv is
-    `id<TAB>kind<TAB>label<TAB>path`. Two flat files, read once per invocation.
+    `id<TAB>kind<TAB>label<TAB>path`. exports.tsv records unqualified JDK
+    package exports by source id. These files are read once per invocation.
 
     The third column is written only for a class whose bytes are not at the
     member its name implies — a multi-release overlay — so whatever the index
@@ -397,6 +415,7 @@ class Index:
         self.app_classes = {}
         self.zips = {}
         self.access = {}
+        self.exports = {}
         self.app = app
         self.meta = {}
         self._load()
@@ -421,6 +440,12 @@ class Index:
                 self.classes[parts[0]] = parts[1] if len(parts) > 1 else ""
                 if len(parts) > 2 and parts[2]:
                     self.members[parts[0]] = parts[2]
+        exports = os.path.join(self.directory, "exports.tsv")
+        if os.path.exists(exports):
+            with open(exports, encoding="utf-8") as handle:
+                for line in handle:
+                    source, _, packages = line.rstrip("\n").partition("\t")
+                    self.exports[source] = set(packages.split(",")) if packages else set()
         meta = os.path.join(self.directory, "meta.tsv")
         if os.path.exists(meta):
             with open(meta, encoding="utf-8") as handle:
@@ -447,7 +472,8 @@ class Index:
                     path = os.path.join(directory, name)
                     fqcn = os.path.relpath(path, root)[:-len(".class")]
                     fqcn = fqcn.replace(os.sep, ".")
-                    self.app_classes[fqcn] = source
+                    if nameable(fqcn):
+                        self.app_classes[fqcn] = source
 
     @property
     def empty(self):
@@ -526,6 +552,15 @@ class Index:
         it exists, and silently dropping it would be the worse error."""
         cached = self.access.get(fqcn)
         if cached is None:
+            source = self.source_of(fqcn)
+            entry = self.sources.get(source, {})
+            if entry.get("kind") == "jmod":
+                if source not in self.exports:
+                    # Compatibility with indexes built before exports.tsv.
+                    self.exports[source] = module_exports(entry["path"])
+                if fqcn.rpartition(".")[0] not in self.exports[source]:
+                    self.access[fqcn] = False
+                    return False
             parts = fqcn.split("$")
             cached = True
             for depth in range(len(parts)):
@@ -609,6 +644,18 @@ def runtime_feature_version(java_home):
     return None
 
 
+def nameable(fqcn):
+    """Exclude metadata and anonymous/local classes from every input kind."""
+    return (fqcn.rsplit(".", 1)[-1] not in ("module-info", "package-info")
+            and not any(part[:1].isdigit() for part in fqcn.split("$")[1:]))
+
+
+def module_exports(path):
+    """Packages a JDK module exports to ordinary classpath applications."""
+    with zipfile.ZipFile(path) as archive:
+        return ClassFile(archive.read("classes/module-info.class")).exports
+
+
 def class_entries(path, feature=None):
     """The class names an archive publishes, and the member each is read from.
 
@@ -660,12 +707,10 @@ def class_entries(path, feature=None):
                 continue
             if name.startswith("classes/"):  # a .jmod
                 name = name[len("classes/"):]
-            if name.endswith("module-info") or name.endswith("package-info"):
-                continue
             fqcn = name.replace("/", ".")
             # Anonymous and local classes: `Outer$1`, `Outer$1Local`. Nothing
             # outside the declaring class can name them.
-            if any(part[:1].isdigit() for part in fqcn.split("$")[1:]):
+            if not nameable(fqcn):
                 continue
             if fqcn not in best or version > best[fqcn][0]:
                 best[fqcn] = (version, entry)
@@ -713,6 +758,7 @@ def command_index(args):
               " multi-release overlays are ignored; pass --release N to select one"
               % os.path.join(java_home, "release"), file=sys.stderr)
     sources, classes, seen = [], [], set()
+    exports = {}
 
     def add(path, kind, label):
         if not os.path.exists(path):
@@ -723,6 +769,8 @@ def command_index(args):
         if not names:
             return 0
         sources.append((source, kind, label, os.path.abspath(path)))
+        if kind == "jmod":
+            exports[source] = module_exports(path)
         added = 0
         for fqcn, member in names.items():
             if fqcn in seen:
@@ -738,7 +786,9 @@ def command_index(args):
             for name in files:
                 if name.endswith(".class"):
                     relative = os.path.relpath(os.path.join(directory, name), root)
-                    names[relative[:-len(".class")].replace(os.sep, ".")] = None
+                    fqcn = relative[:-len(".class")].replace(os.sep, ".")
+                    if nameable(fqcn):
+                        names[fqcn] = None
         return names
 
     # Classpath order decides: the first jar to publish a class is the one the
@@ -763,6 +813,9 @@ def command_index(args):
     with open(os.path.join(args.out, "classes.tsv"), "w", encoding="utf-8") as handle:
         for fqcn, source, member in sorted(classes):
             handle.write("%s\t%s\t%s\n" % (fqcn, source, member))
+    with open(os.path.join(args.out, "exports.tsv"), "w", encoding="utf-8") as handle:
+        for source, packages in exports.items():
+            handle.write("%s\t%s\n" % (source, ",".join(sorted(packages))))
     with open(os.path.join(args.out, "meta.tsv"), "w", encoding="utf-8") as handle:
         handle.write("app\t%s\n" % os.path.abspath(args.app))
         handle.write("classes\t%d\n" % len(classes))
@@ -816,8 +869,14 @@ def command_find(args):
     # rather than dropped: an inaccessible class at the top of the list reads as
     # the answer, and dropping it silently would leave a class the index knows
     # about unexplained.
-    named = [fqcn for fqcn in matches if index.accessible(fqcn)]
-    hidden = [fqcn for fqcn in matches if not index.accessible(fqcn)]
+    named, hidden = [], []
+    for fqcn in matches:
+        if len(named) >= args.limit:
+            break
+        if index.accessible(fqcn):
+            named.append(fqcn)
+        elif len(hidden) < args.limit:
+            hidden.append(fqcn)
     for fqcn in (named + hidden)[:args.limit]:
         note = "" if index.accessible(fqcn) else "  [not public API]"
         print("%-70s %s%s" % (fqcn.replace("$", "."), index.label(fqcn), note))
@@ -831,19 +890,27 @@ def hierarchy(index, fqcn):
     """The class, then everything it inherits from, superclasses before
     interfaces, each visited once. java.lang.Object is left out: its eleven
     methods are on every class and are never what was being looked for."""
-    order, seen, queue = [], set(), [fqcn]
-    while queue:
-        name = queue.pop(0)
-        if name in seen or name == "java.lang.Object":
-            continue
+    order, seen, interfaces = [], set(), []
+    name = fqcn
+    # Class implementations take precedence even when an interface is nearer
+    # to the requested type than the implementing superclass.
+    while name and name not in seen and name != "java.lang.Object":
         seen.add(name)
         parsed = index.parse(name)
         order.append((name, parsed))
         if parsed is None:
+            break
+        interfaces.extend(i.replace("/", ".") for i in parsed.interfaces)
+        name = parsed.supername.replace("/", ".") if parsed.supername else None
+    while interfaces:
+        name = interfaces.pop(0)
+        if name in seen:
             continue
-        if parsed.supername:
-            queue.append(parsed.supername.replace("/", "."))
-        queue.extend(i.replace("/", ".") for i in parsed.interfaces)
+        seen.add(name)
+        parsed = index.parse(name)
+        order.append((name, parsed))
+        if parsed is not None:
+            interfaces.extend(i.replace("/", ".") for i in parsed.interfaces)
     return order
 
 
@@ -1009,7 +1076,8 @@ def describe(index, args, want_fields, want_methods):
     print("  %s" % fqcn.replace("$", "."))
     print("  %s" % index.label(fqcn))
     if not index.accessible(fqcn):
-        print("  NOT PUBLIC API: package-private, or nested in a class that is."
+        print("  NOT PUBLIC API: non-public class/enclosing type, or a package"
+              " that its JDK module does not export."
               " Application code in another package cannot name this class.")
     groups, missing = collect(index, fqcn, args.fqn, want_methods, want_fields,
                               args.declared_only, getattr(args, "match", None))
@@ -1121,3 +1189,4 @@ if __name__ == "__main__":
         os._exit(0)
     except KeyboardInterrupt:
         sys.exit(130)
+

@@ -73,6 +73,7 @@ import java.util.ArrayList;
 import java.util.List;
 public abstract class Base implements Greeter {
     private String hidden = "";
+    public int size() { return 7; }
     public List<String> history() { return new ArrayList<>(); }
     protected void reset() { hidden = ""; }
     private void secret() { reset(); }
@@ -109,6 +110,23 @@ public class Widget<T> extends Base {
     public T pick(int index) { return null; }
     @Override public String greet(String name) { return "hi " + name; }
 }
+JAVA
+
+cat >"$WORK/src/demo/Other.java" <<'JAVA'
+package demo;
+public class Other { public static class Slot { } }
+JAVA
+cat >"$WORK/src/demo/Sized.java" <<'JAVA'
+package demo;
+public interface Sized { int size(); }
+JAVA
+cat >"$WORK/src/demo/Mid.java" <<'JAVA'
+package demo;
+public abstract class Mid extends Base { }
+JAVA
+cat >"$WORK/src/demo/Deep.java" <<'JAVA'
+package demo;
+public class Deep extends Mid implements Sized { }
 JAVA
 
 javac -d "$WORK/classes" "$WORK"/src/demo/*.java
@@ -228,7 +246,9 @@ lacks "--declared-only drops inherited ones"      "$declared" "level()"
 qualified=$(api methods demo.Widget --match setItems --fqn)
 contains "--fqn qualifies parameter types" "$qualified" "java.util.Collection"
 
-ambiguous=$(api show Slot) || true
+ambiguous=$(api show Slot) && failed=1
+contains "ambiguity takes the error branch" "$ambiguous" "is ambiguous. Did you mean"
+contains "ambiguity includes the other candidate" "$ambiguous" "demo.Other.Slot"
 contains "an ambiguous name is answered with candidates, not a guess" \
     "$ambiguous" "demo.Widget.Slot"
 
@@ -245,11 +265,67 @@ contains "and the redirect is a runnable command" "$member" "java-api methods de
 mkdir -p "$WORK/app/target/classes"
 cat >"$WORK/src/demo/Own.java" <<'JAVA'
 package demo;
-public class Own { public void mine() { } }
+public class Own {
+    public void mine() { }
+    public Runnable anonymous() { return new Runnable() { public void run() { } }; }
+    public Object local() { class Local { } return new Local(); }
+}
 JAVA
-javac -d "$WORK/app/target/classes" "$WORK/src/demo/Own.java"
+printf '@Deprecated package demo;\n' >"$WORK/src/demo/package-info.java"
+javac -d "$WORK/app/target/classes" "$WORK/src/demo/Own.java" "$WORK/src/demo/package-info.java"
 own=$(api show demo.Own)
 contains "a class compiled after the index was built is found" "$own" "void mine()"
+
+# The concrete superclass declaration must beat a nearer interface declaration.
+sized=$(api methods demo.Deep --match size)
+contains "a distant superclass implementation wins" "$sized" "Inherited from demo.Base"
+lacks "the interface declaration is not substituted" "$sized" "abstract int size()"
+lacks "the interface is not reported as the declaring type" "$sized" "Inherited from demo.Sized"
+
+# Nameability must agree for live output, indexed directories and jars.
+for mode in live directory jar; do
+    case "$mode" in
+        live) listing=$(api find 'Own|info' --regex) ;;
+        directory|jar)
+            if [ "$mode" = jar ]; then
+                jar --create --file "$WORK/own.jar" -C "$WORK/app/target/classes" .
+                printf '%s' "$WORK/own.jar" >"$WORK/own-cp.txt"
+            else
+                printf '%s' "$WORK/app/target/classes" >"$WORK/own-cp.txt"
+            fi
+            "$JAVA_API" --index "$WORK/own-index" --app "$WORK/empty" index \
+                --classpath "$WORK/own-cp.txt" --quiet
+            listing=$("$JAVA_API" --index "$WORK/own-index" --app "$WORK/empty" find 'Own|info' --regex)
+            ;;
+    esac
+    contains "$mode keeps the enclosing class" "$listing" "demo.Own"
+    lacks "$mode excludes anonymous and local classes" "$listing" "demo.Own.1"
+    lacks "$mode excludes package metadata" "$listing" "package-info"
+done
+
+# A broad query must stop reading class files once its public result limit is
+# filled. Count reads, rather than imposing a machine-dependent time limit.
+"$JAVA_API" --index "$WORK/count-index" --app "$WORK/app" index \
+    --classpath "$WORK/classpath.txt" --java-home "$WORK/empty" --release 25 --quiet
+python3 - "$JAVA_API" "$WORK/count-index" "$WORK/app" <<'PYEOF'
+import contextlib, io, runpy, sys, types
+api = runpy.run_path(sys.argv[1])
+Index = api["Index"]
+reads = []
+original = Index.read_class
+def counted(self, name):
+    reads.append(name)
+    return original(self, name)
+Index.read_class = counted
+args = types.SimpleNamespace(index=sys.argv[2], app=sys.argv[3],
+                             pattern="", regex=False, limit=1)
+with contextlib.redirect_stdout(io.StringIO()) as output:
+    api["command_find"](args)
+assert len(reads) <= 3, reads  # Backstage (hidden), Base (public); no remaining scan
+assert "demo.Base" in output.getvalue(), output.getvalue()
+assert "[not public API]" not in output.getvalue(), output.getvalue()
+print("ok   broad search bounds class reads and prioritizes public results")
+PYEOF
 
 # An index with nothing to resolve from is a failure, not an empty index.
 no_pom=$("$JAVA_API" --index "$WORK/index2" --app "$WORK/app" index 2>&1) && failed=1
@@ -325,9 +401,43 @@ contains "a jar with no Multi-Release attribute answers from its base entry" \
     "$plain" "base()"
 lacks "and its versioned entries are inert" "$plain" "overlaid()"
 
+# A modular fixture covers ordinary exports, qualified exports and no exports.
+mkdir -p "$WORK/module/src/publicapi" "$WORK/module/src/internal" \
+    "$WORK/module/src/qualified" "$WORK/fake-jdk/jmods"
+cat >"$WORK/module/src/module-info.java" <<'JAVA'
+module lookup.fixture {
+    exports publicapi;
+    exports qualified to java.logging;
+}
+JAVA
+for package in publicapi internal qualified; do
+    printf 'package %s; public class ModuleProbe {}\n' "$package" \
+        >"$WORK/module/src/$package/ModuleProbe.java"
+done
+javac -d "$WORK/module/classes" "$WORK/module/src/module-info.java" \
+    "$WORK"/module/src/*/ModuleProbe.java
+jmod create --class-path "$WORK/module/classes" "$WORK/fake-jdk/jmods/lookup.fixture.jmod"
+"$JAVA_API" --index "$WORK/module-index" --app "$WORK/empty" index \
+    --classpath "$WORK/classpath.txt" --java-home "$WORK/fake-jdk" --release 25 --quiet
+for pass in persisted legacy; do
+    if [ "$pass" = legacy ]; then rm "$WORK/module-index/exports.tsv"; fi
+    for package in publicapi internal qualified; do
+        result=$("$JAVA_API" --index "$WORK/module-index" --app "$WORK/empty" show "$package.ModuleProbe")
+        if [ "$package" = publicapi ]; then
+            lacks "$pass index allows unqualified exports" "$result" "NOT PUBLIC API"
+        else
+            contains "$pass index marks $package inaccessible" "$result" "NOT PUBLIC API"
+        fi
+    done
+    result=$("$JAVA_API" --index "$WORK/module-index" --app "$WORK/empty" find ModuleProbe --limit 1)
+    contains "$pass search prefers the exported type" "$result" "publicapi.ModuleProbe"
+    lacks "$pass search excludes hidden types when limit is filled" "$result" "[not public API]"
+done
+
 if [ $failed -eq 0 ]; then
     echo "java-api tests passed."
 else
     echo "java-api tests FAILED." >&2
 fi
 exit $failed
+

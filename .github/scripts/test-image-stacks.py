@@ -88,6 +88,12 @@ class ImageStacks(unittest.TestCase):
         self.assertEqual(self.decisions('modern'), ('rebuild', 'rebuild'))
         self.assertEqual(self.decisions('migration'), ('reuse', 'rebuild'))
 
+    def test_acme_checker_classes_rebuild_migration_agents(self):
+        self.write('tasks/flow-reports-strict/task.toml', 'image_stack = "modern"\n')
+        self.write('tasks/flow-reports-strict/tests/verifier/src/test/java/AcmeChecks.java', 'changed')
+        self.commit()
+        self.assertEqual(self.decisions('migration'), ('reuse', 'rebuild'))
+
     def test_pin_only_and_instruction_changes_reuse_both_stacks(self):
         p = self.repo / 'base/agents.Dockerfile'
         p.write_text(p.read_text().replace('a' * 64, 'c' * 64))

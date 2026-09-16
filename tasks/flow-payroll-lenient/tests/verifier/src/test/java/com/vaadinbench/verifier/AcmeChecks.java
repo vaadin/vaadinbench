@@ -19,14 +19,7 @@ final class AcmeChecks {
   fixture=JsonParser.parseString(inputs.text("fixture.json")).getAsJsonObject();
  }
  static void open(Page page,String url,Path diagnostics){
-  try{page.navigate(url);}catch(PlaywrightException e){throw new BrowserSession.NavigationException("Cannot navigate to "+url,e);}
-  try{assertThat(page.getByTestId("view-header")).isVisible();}
-  catch(AssertionError e){
-   String detail=BrowserDiagnostics.startup(page);
-   if(diagnostics!=null)try{Files.writeString(diagnostics,detail);}catch(IOException io){e.addSuppressed(io);}
-   throw new BrowserSession.ReadinessException("ACME route did not become ready: "+detail,e);
-  }
-  BrowserSession.settle(page);
+  BrowserSession.open(page,url,diagnostics,page.getByTestId("view-header"),"ACME route");
  }
  Locator id(String key){return page.getByTestId(key);}
  void component(Locator e,String tags){assertThat(e).isVisible();assertTrue((Boolean)e.evaluate("(e,t)=>t.split(',').includes(e.localName)&&!!customElements.get(e.localName)&&e instanceof customElements.get(e.localName)&&!!e.shadowRoot",tags),tags);}
@@ -51,7 +44,7 @@ final class AcmeChecks {
    var b=cell.boundingBox();assertTrue(b.width>0&&b.x>=-1&&b.x+b.width<=page.viewportSize().width+1,"Payroll "+field+" must remain readable");
   }
  }
- void settle(){AcmeVisualEvaluator.settle(page);page.waitForTimeout(100);}
+ void settle(){BrowserSession.settle(page);}
  void realVaadinComponentsAndAccessibleShell(){
   component(id("nav-"+view),"vaadin-side-nav-item");assertThat(id("nav-"+view)).hasAttribute("aria-current","page");
   component(id("account-avatar"),"vaadin-avatar");assertThat(id("account")).containsText("Firstname Lastname");

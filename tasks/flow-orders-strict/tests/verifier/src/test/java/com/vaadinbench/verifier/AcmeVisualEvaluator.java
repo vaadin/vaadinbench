@@ -91,9 +91,6 @@ public final class AcmeVisualEvaluator {
     // Check image-painting CSS properties, including generated content and
     // shadow trees. Pseudo-elements have no bounding-box API: require explicit
     // bounded dimensions when they paint an external image.
-    // Check image-painting CSS properties, including generated content and
-    // shadow trees. Pseudo-elements have no bounding-box API: require explicit
-    // bounded dimensions when they paint an external image.
     static boolean hasNoLargeImages(Page page) {
         return (Boolean) page.evaluate("""
             () => {

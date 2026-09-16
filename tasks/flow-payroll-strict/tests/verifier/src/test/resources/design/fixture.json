@@ -1,0 +1,165 @@
+{
+  "displayCount": 124,
+  "rows": [
+    {
+      "id": "p01",
+      "period": "Dec 16 - Dec 31, 2026",
+      "date": "Jan 5, 2027",
+      "employees": "128",
+      "gross": "€432,100.00",
+      "deductions": "€43,210.00",
+      "net": "€332,800.00",
+      "status": "In review"
+    },
+    {
+      "id": "p02",
+      "period": "Dec 1 - Dec 15, 2026",
+      "date": "Dec 20, 2026",
+      "employees": "127",
+      "gross": "€467,800.00",
+      "deductions": "€46,780.00",
+      "net": "€360,500.00",
+      "status": "Approved"
+    },
+    {
+      "id": "p03",
+      "period": "Nov 16 - Nov 30, 2026",
+      "date": "Dec 5, 2026",
+      "employees": "128",
+      "gross": "€389,500.00",
+      "deductions": "€38,950.00",
+      "net": "€293,700.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p04",
+      "period": "Nov 1 - Nov 15, 2026",
+      "date": "Nov 20, 2026",
+      "employees": "122",
+      "gross": "€412,300.00",
+      "deductions": "€41,230.00",
+      "net": "€317,400.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p05",
+      "period": "Oct 16 - Oct 31, 2026",
+      "date": "Nov 5, 2026",
+      "employees": "122",
+      "gross": "€445,600.00",
+      "deductions": "€44,560.00",
+      "net": "€345,200.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p06",
+      "period": "Oct 1 - Oct 15, 2026",
+      "date": "Oct 20, 2026",
+      "employees": "122",
+      "gross": "€398,200.00",
+      "deductions": "€39,820.00",
+      "net": "€302,900.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p07",
+      "period": "Sep 16 - Sep 30, 2026",
+      "date": "Oct 5, 2026",
+      "employees": "122",
+      "gross": "€421,750.00",
+      "deductions": "€42,175.00",
+      "net": "€325,400.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p08",
+      "period": "Sep 1 - Sep 15, 2026",
+      "date": "Sep 20, 2026",
+      "employees": "122",
+      "gross": "€376,400.00",
+      "deductions": "€37,640.00",
+      "net": "€282,100.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p09",
+      "period": "Aug 16 - Aug 31, 2026",
+      "date": "Sep 5, 2026",
+      "employees": "122",
+      "gross": "€403,200.00",
+      "deductions": "€40,320.00",
+      "net": "€308,790.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p10",
+      "period": "Aug 1 - Aug 15, 2026",
+      "date": "Aug 20, 2026",
+      "employees": "122",
+      "gross": "€458,950.00",
+      "deductions": "€45,895.00",
+      "net": "€358,240.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p11",
+      "period": "Jul 16 - Jul 31, 2026",
+      "date": "Aug 5, 2026",
+      "employees": "122",
+      "gross": "€376,800.00",
+      "deductions": "€37,680.00",
+      "net": "€278,560.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p12",
+      "period": "Jul 1 - Jul 15, 2026",
+      "date": "Jul 20, 2026",
+      "employees": "122",
+      "gross": "€421,300.00",
+      "deductions": "€42,130.00",
+      "net": "€324,670.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p13",
+      "period": "Jun 16 - Jun 30, 2026",
+      "date": "Jul 5, 2026",
+      "employees": "122",
+      "gross": "€398,650.00",
+      "deductions": "€39,865.00",
+      "net": "€298,340.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p14",
+      "period": "Jun 1 - Jun 15, 2026",
+      "date": "Jun 30, 2026",
+      "employees": "122",
+      "gross": "€445,200.00",
+      "deductions": "€44,520.00",
+      "net": "€341,780.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p15",
+      "period": "May 16 - May 31, 2026",
+      "date": "Jun 15, 2026",
+      "employees": "122",
+      "gross": "€412,850.00",
+      "deductions": "€41,220.00",
+      "net": "€316,420.00",
+      "status": "Paid"
+    },
+    {
+      "id": "p16",
+      "period": "May 1 - May 15, 2026",
+      "date": "May 30, 2026",
+      "employees": "122",
+      "gross": "€387,500.00",
+      "deductions": "€38,750.00",
+      "net": "€289,100.00",
+      "status": "Paid"
+    }
+  ]
+}

@@ -51,7 +51,7 @@ final class BrowserSession {
             }
             throw new ReadinessException("Employee route did not become ready: " + diagnostic, failure);
         }
-        try { assertThat(BrowserElements.row(page, "e15")).hasCount(1); }
+        try { assertThat(page.getByTestId("employee-grid").locator("[part~=body-row]").filter(new Locator.FilterOptions().setHas(page.locator("[part~=employee-row-e15]")))).hasCount(1); }
         catch (AssertionError failure) {
             throw new ReadinessException("Required employee row e15 did not render; dependent scenarios cannot run", failure);
         }

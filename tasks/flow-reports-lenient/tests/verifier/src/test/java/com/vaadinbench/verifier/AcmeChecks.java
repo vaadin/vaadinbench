@@ -149,5 +149,6 @@ final class AcmeChecks {
   Locator scroller=view.equals("orders")?id("order-list").locator("[part=items]"):view.equals("reports")?id("report-cards"):id("payroll-grid").locator("#table");
   scroller.evaluate("e=>e.scrollTop=e.scrollHeight");assertTrue(((Number)scroller.evaluate("e=>Number(e.scrollTop)")).doubleValue()>0);assertEquals(y,id("view-header").boundingBox().y,1);assertEquals(0,id("sidebar").boundingBox().y,1);
  }
- void measuredDesignAndRegionalScreenshots(String profile, Path output)throws IOException {var result=AcmeVisualEvaluator.evaluate(page,profile,output, inputs, state -> {});assertEquals(List.of(),result.failures(),"See design-evaluation.json and visual-report.html");}
+ void measuredDesignAndRegionalScreenshots(String profile, Path output)throws IOException {measuredDesignAndRegionalScreenshots(profile,output,false);}
+ void measuredDesignAndRegionalScreenshots(String profile, Path output, boolean failureArtifactsOnly)throws IOException {var result=AcmeVisualEvaluator.evaluate(page,profile,output, inputs, state -> {}, failureArtifactsOnly);assertEquals(List.of(),result.failures(),"See design-evaluation.json and visual-report.html");}
 }

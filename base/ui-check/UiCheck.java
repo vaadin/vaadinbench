@@ -111,8 +111,13 @@ public final class UiCheck {
         } else {
             if (!inputs.text("view.txt").strip().equals(view)) throw new IOException("Design inputs do not match view: " + view);
             new AcmeDesignContract(profile, inputs);
-            if (!com.google.gson.JsonParser.parseString(inputs.text("fixture.json")).getAsJsonObject().has("rows"))
-                throw new IOException("Missing fixture rows");
+            try {
+                var fixture = com.google.gson.JsonParser.parseString(inputs.text("fixture.json")).getAsJsonObject();
+                if (!fixture.has("rows") || !fixture.get("rows").isJsonArray())
+                    throw new IllegalArgumentException("rows must be an array");
+            } catch (RuntimeException error) {
+                throw new IOException("Invalid design input fixture.json: " + error.getMessage(), error);
+            }
             inputs.image(view + ".png");
         }
         OutputPaths outputs;
@@ -272,7 +277,7 @@ public final class UiCheck {
                     AcmeChecks.open(page, options.url(), options.workingOutput().resolve(name + "-startup-failure.txt"));
                     AcmeChecks checks = new AcmeChecks(page, inputs);
                     switch (name) {
-                        case "measuredDesignAndRegionalScreenshots" -> checks.measuredDesignAndRegionalScreenshots(options.profile(), options.workingOutput().resolve("visual"));
+                        case "measuredDesignAndRegionalScreenshots" -> checks.measuredDesignAndRegionalScreenshots(options.profile(), options.workingOutput().resolve("visual"), true);
                         case "responsiveLiveResizePreservesState" -> checks.responsiveLiveResizePreservesState();
                         case "realVaadinComponentsAndAccessibleShell" -> checks.realVaadinComponentsAndAccessibleShell();
                         case "fixtureContentAndInitialState" -> checks.fixtureContentAndInitialState();

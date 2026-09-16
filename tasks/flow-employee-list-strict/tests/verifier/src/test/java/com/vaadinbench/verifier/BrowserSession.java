@@ -40,7 +40,6 @@ final class BrowserSession {
         catch (AssertionError failure) {
             throw new ReadinessException("Required employee row e15 did not render; dependent scenarios cannot run", failure);
         }
-        settle(page);
     }
     static void open(Page page, String url, Path diagnosticFile, Locator readiness, String label) {
         try { page.navigate(url); }

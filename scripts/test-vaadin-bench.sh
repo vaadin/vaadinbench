@@ -35,7 +35,7 @@ resolve() {
 }
 
 resolve claude -c vaadin-skills-mcp-tools -m haiku -t flow-new-view -k 1 >/tmp/vb-claude.json
-resolve codex -c vaadin-mcp-java -m 'openai/*' -t flow-new-view -k 2 -n 3 >/tmp/vb-codex.json
+resolve codex -c vaadin-mcp -m 'openai/*' -t flow-new-view -k 2 -n 3 >/tmp/vb-codex.json
 resolve fable -c vanilla -m fable -t flow-employee-list-strict -k 1 >/tmp/vb-fable.json
 resolve claude-all -c vanilla -m 'anthropic/*' -t flow-employee-list-strict -k 1 >/tmp/vb-claude-all.json
 resolve astra -c vanilla -m astra -t flow-employee-list-strict -k 1 >/tmp/vb-astra.json
@@ -112,9 +112,9 @@ assert row.model_name == "anthropic/claude-haiku-4-5-20251001"
 assert row.skills == [SKILLS], row.skills
 assert row.extra_allowed_hosts == ["api.anthropic.com", "mcp.vaadin.com"], row.extra_allowed_hosts
 assert row.kwargs == {"config": {"enabledPlugins": {"vaadin-agent-tools@skills-dir": True}}}, row.kwargs
-assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs"]
+assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/"]
 
-# Codex, four models in one run, the newer documentation server, no skills.
+# Codex, four models in one run, the Java documentation server, no skills.
 codex = load("codex")
 assert codex.n_attempts == 2 and codex.n_concurrent_trials == 3
 assert [r.model_name for r in codex.agents] == ["openai/gpt-5.6-luna", "openai/gpt-5.6-terra", "openai/gpt-5.6-sol", "openai/gpt-6-astra"]
@@ -123,7 +123,7 @@ for row in codex.agents:
     assert row.skills == []
     assert row.kwargs == {}
     assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai.com", "mcp.vaadin.com"]
-    assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs-java/docs"]
+    assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/"]
 
 # Fable uses Claude Code and the Anthropic allowlist, with no Codex settings.
 fable = load("fable")
@@ -164,7 +164,7 @@ assert row.name == "vaadinbench_agents:PreinstalledOpenCode", (row.name, row.imp
 assert row.model_name == "openai-compatible/Qwen3.8-27B-UD-Q5_K_XL-MTP"
 assert row.skills == [SKILLS]
 assert row.extra_allowed_hosts == ["127.0.0.1", "mcp.vaadin.com"], row.extra_allowed_hosts
-assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/docs"]
+assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/"]
 assert row.kwargs == {
     "opencode_config": {
         "provider": {

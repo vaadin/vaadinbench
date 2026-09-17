@@ -2,7 +2,7 @@
   "mcpServers": {
     "vaadin": {
       "type": "http",
-      "url": "https://mcp.vaadin.com/docs-java/docs"
+      "url": "https://mcp.vaadin.com/old/docs"
     }
   }
 }

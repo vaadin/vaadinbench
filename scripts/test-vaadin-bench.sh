@@ -121,7 +121,8 @@ assert [r.model_name for r in codex.agents] == ["openai/gpt-5.6-luna", "openai/g
 for row in codex.agents:
     assert row.name == "codex"
     assert row.skills == []
-    assert row.kwargs == {}
+    # The effort Harbor used to add on its own, now stated by the wrapper.
+    assert row.kwargs == {"reasoning_effort": "high"}, row.kwargs
     assert row.extra_allowed_hosts == ["api.openai.com", "chatgpt.com", "auth.openai.com", "mcp.vaadin.com"]
     assert [s.url for s in row.mcp_servers] == ["https://mcp.vaadin.com/"]
 
@@ -263,6 +264,17 @@ assert completed_models == {
 [collision] = load("opencode-name-collision").agents
 assert collision.name == "vaadinbench_agents:PreinstalledOpenCode"
 assert collision.model_name == "openai-compatible/luna"
+
+# Every row is instantiated through Harbor's agent factory, which is where a
+# kwarg the agent does not declare is refused: from Harbor 0.23 each built-in
+# agent validates `--ak` against its options model before a trial starts, so
+# a `config` or `reasoning_effort` that stopped being accepted fails here and
+# not at the start of a paid run.
+for name in ("claude", "codex", "vanilla", "opencode"):
+    for config_row in load(name).agents:
+        AgentFactory.create_agent_from_config(
+            config_row, Path(tempfile.mkdtemp(prefix="vaadin-bench-agent-test-"))
+        )
 
 agent = AgentFactory.create_agent_from_config(row, Path(tempfile.mkdtemp(prefix="vaadin-bench-agent-test-")))
 assert isinstance(agent, PreinstalledOpenCode)

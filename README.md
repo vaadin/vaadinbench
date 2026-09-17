@@ -110,9 +110,11 @@ condition's skills and MCP server like any other agent; `vaadin-skills-mcp-tools
 is skipped because agent-tools is a Claude Code plugin.
 
 The CLI itself is the OpenCode 2.x release `OPENCODE_VERSION` pins in
-`base/agents.Dockerfile`, installed from the project's own installer because
-npm's `opencode-ai` stops at 1.x. As with Codex, a run gets the CLI its image
-was built with, so changing the pin means rebuilding the agents image.
+`base/agents.Dockerfile`, installed through v2's own installer at
+`opencode.ai/v2/install`: a v2 release is the scoped npm package
+`@opencode/cli-<target>`, not the `opencode-ai` package Harbor's installer asks
+for, which stops at 1.x. As with Codex, a run gets the CLI its image was built
+with, so changing the pin means rebuilding the agents image.
 
 OpenCode knows nothing about a model ID it has no entry for, so the run states
 what the endpoint serves. This matters beyond bookkeeping: OpenCode decides when

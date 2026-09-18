@@ -53,35 +53,28 @@ BAKED_CLAUDE_PLUGINS = ("vaadin-agent-tools",)
 # is one effort per agent over time, not a comparison between the agents.
 REASONING_EFFORT = "medium"
 
-# OpenCode clamps a request's max output tokens to min(limit.output, 32_000): the
-# ceiling is compiled in, so a model entry that states more than 32k has the rest
-# silently dropped before the request leaves the CLI, and the server sees 32000.
-# OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX raises that ceiling; see
-# https://github.com/anomalyco/opencode/issues/29363.
-OPENCODE_OUTPUT_TOKEN_MAX = 32_000
-
-# What OpenCode leaves for the reply when a model states limit.input:
-# COMPACTION_BUFFER in session/overflow.ts, where the session's usable input is
-# `limit.input - min(20_000, max output)` and, with no limit.input, the far more
-# fragile `limit.context - max output`. Not a knob here, just the number the
-# input budget below is read against.
-OPENCODE_COMPACTION_BUFFER = 20_000
+# What a stated output limit does to an OpenCode session. Since v2 the CLI sends
+# no max_tokens of its own -- protocols/openai-chat.ts fills it from generation
+# options a config cannot set -- so `limit.output` no longer caps a reply; it is
+# what session/compaction.ts reserves for one: the session compacts once its
+# prompt reaches `limit.context - max(min(limit.output, 32_000), 20_000)`, or
+# `limit.input - 20_000` where that is lower and the entry states an input.
+# The 32k and the 20k are that file's OUTPUT_TOKEN_MAX and DEFAULT_BUFFER, and
+# what scripts/test-vaadin-bench.sh reads a stated limit against; neither is a
+# knob here, and no run states an env ceiling any more -- v1's
+# OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX went with the clamp it raised.
 
 
-def token_count(field: str, value: object) -> int | None:
-    """A token count as OpenCode reads it. Its model schema takes any finite
-    number and JavaScript does not distinguish 40000.0 from 40000, so an overlay
-    is free to write either and both mean the same limit. A fraction of a token
-    means nothing and cannot be stated as the env ceiling below, which OpenCode
-    parses with Number.isInteger, so it is refused rather than quietly ignored.
+def whole_tokens(entry_limit: dict) -> None:
+    """Refuse a limit stated in fractions of a token. OpenCode's model schema
+    takes any finite number and JavaScript does not distinguish 40000.0 from
+    40000, so an overlay is free to write either and both mean the same limit; a
+    true fraction means nothing, and the CLI would silently truncate it to a
+    budget the run did not ask for.
     """
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    if isinstance(value, float):
-        if not value.is_integer():
-            sys.exit(f"vaadin-bench: OpenCode model {field} wants whole tokens, got {value}")
-        return int(value)
-    return value
+    for field, value in entry_limit.items():
+        if isinstance(value, float) and not value.is_integer():
+            sys.exit(f"vaadin-bench: OpenCode model limit.{field} wants whole tokens, got {value}")
 
 
 @dataclass(frozen=True)
@@ -162,11 +155,10 @@ def openai_compatible_agent(
     compact a session from `limit.context`, so leaving it to the CLI's own
     default for an unknown model ID makes that threshold implicit and unrecorded;
     passing it here puts it in the printed command and in the trial's config.
-    An output limit above OpenCode's compiled-in ceiling also needs
-    OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX, or the entry states one number and the
-    request carries another -- and, with the ceiling raised, a `limit.input`, or
-    OpenCode's fallback input budget of `context - ceiling` compacts the session
-    after every turn.
+    `limit.output` is the reply OpenCode reserves room for, not a cap it sends:
+    v2 puts no max_tokens on the request, so an endpoint's own default decides
+    how long a reply may get, and what the two halves of the limit decide here is
+    when the session compacts (see the arithmetic at the top of this file).
 
     `model_config` is merged over everything derived from the other arguments,
     which is what lets it reach fields with no flag of their own (`cost`,
@@ -208,33 +200,8 @@ def openai_compatible_agent(
                 "--openai-compatible-context and --openai-compatible-output, or give the "
                 "rest through --openai-compatible-model-config."
             )
+        whole_tokens(limit_entry)
     env = {"OPENAI_API_KEY": "${OPENAI_API_KEY:-local}", "OPENAI_BASE_URL": base}
-    # Stating limit.output is not enough to get it: OpenCode's compiled-in ceiling
-    # wins the min(), so an entry asking for more than 32k reaches the server as
-    # max_tokens 32000 and the run records an output limit it never used. Raising
-    # the ceiling to exactly what the entry states leaves the entry in charge --
-    # the min() still clamps to limit.output, and nothing else about the run moves.
-    stated_limit = entry.get("limit") if isinstance(entry.get("limit"), dict) else None
-    output_limit = token_count("limit.output", stated_limit.get("output")) if stated_limit else None
-    if output_limit is not None and output_limit > OPENCODE_OUTPUT_TOKEN_MAX:
-        # Written as an env template, not a literal: Harbor reads a key holding
-        # TOKEN as a secret and redacts its literal to **** when it serializes the
-        # config, which is what a resumed trial would then hand OpenCode. A
-        # template is persisted verbatim and resolved at run time, so the number
-        # survives; the host keeps the last word by exporting the variable itself.
-        env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"] = (
-            "${OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX:-" + str(output_limit) + "}"
-        )
-        # The ceiling is also what OpenCode subtracts from the context window to
-        # get a session's usable input when a model states no limit.input, so
-        # raising it without one trades a truncated reply for a session that
-        # compacts after every turn -- at output == context, usable input is zero.
-        # The input budget is therefore stated too: the window, against which
-        # OpenCode reserves its own buffer for the reply. An overlay that gives
-        # limit.input keeps its own number.
-        context_limit = token_count("limit.context", stated_limit.get("context"))
-        if "input" not in stated_limit and context_limit is not None:
-            entry["limit"] = {**stated_limit, "input": context_limit}
     return Agent(
         label="opencode",
         harbor_name="vaadinbench_agents:PreinstalledOpenCode",
@@ -565,7 +532,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--openai-compatible-output",
         type=int,
         metavar="N",
-        help="maximum output tokens per turn",
+        help="reply budget in tokens; OpenCode reserves it when compacting",
     )
     oc.add_argument(
         "--openai-compatible-vision",

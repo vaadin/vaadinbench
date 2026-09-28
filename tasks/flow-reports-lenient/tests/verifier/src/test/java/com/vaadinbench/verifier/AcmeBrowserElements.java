@@ -10,10 +10,10 @@ final class AcmeBrowserElements {
     return page.getByTestId("payroll-grid");
   }
 
+  // Historical geometry diagnostics resolve fixture rows by their displayed order.
   static Locator row(Page page, String id) {
-    return grid(page)
-        .locator("[part~=body-row]")
-        .filter(new Locator.FilterOptions().setHas(page.locator("[part~=payroll-row-" + id + "]")));
+    return grid(page).locator("[part~=body-row]:not([hidden])")
+        .nth(Integer.parseInt(id.substring(1)) - 1);
   }
 
   static Locator header(Page page) {

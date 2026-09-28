@@ -20,6 +20,11 @@ public final class BrowserFeedbackControls {
              BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                      .setViewportSize(1440,1024).setDeviceScaleFactor(2))) {
             Page page = context.newPage();
+            page.setContent("<vaadin-grid data-testid='employee-grid'>"
+                    + "<div part='body-row'>Henry Thompson</div>"
+                    + "<div part='body-row'>Liam Johnson</div></vaadin-grid>");
+            require(BrowserElements.row(page, "e02").innerText().equals("Liam Johnson"),
+                    "Fixture selection must work without custom row/column parts");
             page.evaluate("""
                 () => customElements.define('vaadin-test-control', class extends HTMLElement {
                   constructor() { super(); this.attachShadow({mode:'open'}).innerHTML='<button>Choice</button>'; }

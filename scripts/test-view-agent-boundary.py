@@ -54,6 +54,10 @@ class ViewAgentBoundary(unittest.TestCase):
                         'SideNav',
                     ):
                         self.assertNotIn(forbidden, instruction)
+                    self.assertIn('appropriate Vaadin Flow components', instruction)
+                    self.assertIn('idiomatic Vaadin patterns', instruction)
+                    self.assertIn('until\nyou consider the view complete', instruction)
+                    self.assertNotIn('pass data/callbacks', instruction)
                     self.assertIn('data-testid', instruction)
                     self.assertIn('icon-<', instruction)
                     self.assertIn('menu-toggle', instruction)

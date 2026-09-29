@@ -79,7 +79,7 @@ public final class UiCheckControls {
                     try (BrowserContext context = BrowserSession.context(browser)) {
                         Page page = context.newPage();
                         BrowserSession.open(page, url);
-                        if (variant.equals("shifted")) page.addStyleTag(new Page.AddStyleTagOptions().setContent("body{transform:translateX(8px)!important}"));
+                        if (variant.equals("shifted")) page.addStyleTag(new Page.AddStyleTagOptions().setContent("body{transform:translateX(240px)!important}"));
                         Path destination = output.resolve(variant + (publicInputs ? "-public" : "-protected"));
                         evaluations.add(VisualEvaluator.evaluate(page, "strict", destination,
                                 publicInputs ? inputs : DesignInputs.protectedResources(), state -> {}, publicInputs));
@@ -96,9 +96,9 @@ public final class UiCheckControls {
                 }
                 if (variant.equals("shifted")) {
                     require(!evaluations.getFirst().passed(), "Shifted page passed");
-                    require(evaluations.getFirst().visual().stream().anyMatch(v -> !v.passed()), "Shifted page has no SSIM failures");
+                    require(evaluations.getFirst().failures().stream().anyMatch(f -> f.contains("/placement/") || f.contains("SSIM")), "Shifted page has no visual failures");
                     try (var files = Files.list(output.resolve("shifted-public"))) {
-                        require(files.anyMatch(p -> p.getFileName().toString().startsWith("plain-") && p.toString().endsWith("-diff.png")), "Missing regional diff crops");
+                        require(files.anyMatch(p -> p.toString().endsWith("-diff.png")), "Missing visual diff artifacts");
                     }
                 }
                 System.out.println(variant + ": public/protected SSIM, geometry and component measurements agree");

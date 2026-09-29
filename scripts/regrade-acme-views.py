@@ -60,6 +60,11 @@ def main():
                 failure = next((child for child in case if child.tag in ('failure', 'error', 'skipped')), None)
                 record['checks'].append({'name': case.get('name'), 'passed': failure is None,
                                          'message': failure.get('message', '') if failure is not None else ''})
+        category_file = logs/'verification-summary.json'
+        if category_file.exists():
+            category_report = json.loads(category_file.read_text())
+            record['categories'] = category_report['categories']
+            record['overall'] = category_report['overall']
         records.append(record)
         (output/'summary.json').write_text(json.dumps(records, indent=2)+'\n')
         print(f'  reward={reward}; reports: {logs}', flush=True)

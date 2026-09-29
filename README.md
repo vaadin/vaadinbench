@@ -71,7 +71,9 @@ point the task environment's `BASE_IMAGE` at a new tag so Harbor rebuilds the ta
 image too. Host CLI upgrades do not update the container. Your Anthropic account
 must have access to the model.
 
-Use `-m opus-5-5` for [Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/overview).
+Use `-m opus-5-5` for [Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/overview)
+or `-m sonnet-5-5` for [Claude Sonnet 5.5](https://platform.claude.com/docs/en/models/sonnet-5-5/overview).
+The short selector `sonnet` selects both Sonnet 5 and Sonnet 5.5.
 
 For Codex:
 

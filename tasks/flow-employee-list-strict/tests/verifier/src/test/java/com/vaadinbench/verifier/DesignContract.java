@@ -36,8 +36,8 @@ public final class DesignContract {
     profile = selected.getAsJsonObject();
   }
 
-  public double minimumSsim() {
-    return profile.get("ssimMinimum").getAsDouble();
+  public VisualScoring visualScoring(String profileName) {
+    return new VisualScoring(root, profileName);
   }
 
   public List<StructuralSimilarity.Region> regions(String state) {

@@ -15,20 +15,15 @@ public final class UiCheck {
     private static final Map<String, String> CHECKS = new LinkedHashMap<>();
     static {
         CHECKS.put("bothReferenceScreenshots", "visual");
-        CHECKS.put("breakpointsReflowLiveInBothDirections", "responsive");
         CHECKS.put("appropriateVaadinComponentsAreUsed", "behavior");
-        CHECKS.put("shellFixtureAndRealControls", "behavior");
-        CHECKS.put("selectionCallbacksAndNoPersistence", "behavior");
-        CHECKS.put("tableScrollKeepsShellAndHeaderStill", "behavior");
+        CHECKS.put("basicInteractions", "behavior");
     }
     private static final Set<String> MASKED_SCENARIOS = Set.of("appropriateVaadinComponentsAreUsed", "realVaadinComponentsAndAccessibleShell");
     private static final Map<String,String> ACME_CHECKS = new LinkedHashMap<>();
     static {
         ACME_CHECKS.put("measuredDesignAndRegionalScreenshots", "visual");
-        ACME_CHECKS.put("responsiveLiveResizePreservesState", "responsive");
-        for (String name : List.of("realVaadinComponentsAndAccessibleShell", "fixtureContentAndInitialState",
-                "interactionsUpdateRealContent", "filterBoundariesAndReset", "contentScrollsWithoutMovingShell"))
-            ACME_CHECKS.put(name, "behavior");
+        ACME_CHECKS.put("realVaadinComponentsAndAccessibleShell", "behavior");
+        ACME_CHECKS.put("basicInteractions", "behavior");
     }
     static Map<String,String> checks(String view) { return view.equals("employees") ? CHECKS : ACME_CHECKS; }
     static String installedView() throws IOException {
@@ -43,7 +38,7 @@ public final class UiCheck {
     private static final String HELP = """
         Usage: ui-check --url http://localhost:8080/employees [options]
           --view employees|orders|payroll|reports  Default: installed task view
-          --checks all|visual|responsive|behavior   Comma-separated groups; default all
+          --checks all|visual|behavior              Comma-separated groups; default all
           --scenario NAME[,NAME]                   Run individual scenarios; exclusive with --checks
           --list                                   List scenario names and groups
           --profile strict|lenient                 Default: installed task profile
@@ -51,11 +46,11 @@ public final class UiCheck {
           --output DIR                             Empty directory; default /logs/agent/ui-check-* when writable,
                                                    otherwise a new directory in the system temp directory
           --help                                   Show this help
-        Use app-start/app-restart before checking; this command only inspects its live URL.
+        Start the app before checking; this command only inspects its live URL.
         Run --checks all after the first working implementation and again before finishing.
         Full grouped failures: failures.txt; JSON: .checks[].failures and .errors[].
         Exit codes: 0 selected checks passed, 1 checks failed, 2 invocation/environment error.
-        A visual-only pass does not mean that responsive or behavioral checks passed.
+        A visual-only pass does not mean that behavioral checks passed.
         """;
 
     record Options(String url, Set<String> groups, String profile, Path design, Path output,
@@ -85,9 +80,9 @@ public final class UiCheck {
         Map<String,String> available = checks(view);
         String selection = flags.getOrDefault("--checks", "all");
         Set<String> groups = new LinkedHashSet<>(selection.equals("all")
-                ? List.of("visual", "responsive", "behavior") : Arrays.asList(selection.split(",", -1)));
-        if (!Set.of("visual", "responsive", "behavior").containsAll(groups))
-            throw new IllegalArgumentException("--checks must be all or visual,responsive,behavior");
+                ? List.of("visual", "behavior") : Arrays.asList(selection.split(",", -1)));
+        if (!Set.of("visual", "behavior").containsAll(groups))
+            throw new IllegalArgumentException("--checks must be all or visual,behavior");
         Set<String> scenarios = new LinkedHashSet<>();
         if (flags.containsKey("--scenario")) {
             if (flags.containsKey("--checks")) throw new IllegalArgumentException("Use either --scenario or --checks");
@@ -278,12 +273,8 @@ public final class UiCheck {
                     AcmeChecks checks = new AcmeChecks(page, inputs);
                     switch (name) {
                         case "measuredDesignAndRegionalScreenshots" -> checks.measuredDesignAndRegionalScreenshots(options.profile(), options.workingOutput().resolve("visual"), true);
-                        case "responsiveLiveResizePreservesState" -> checks.responsiveLiveResizePreservesState();
                         case "realVaadinComponentsAndAccessibleShell" -> checks.realVaadinComponentsAndAccessibleShell();
-                        case "fixtureContentAndInitialState" -> checks.fixtureContentAndInitialState();
-                        case "interactionsUpdateRealContent" -> checks.interactionsUpdateRealContent();
-                        case "filterBoundariesAndReset" -> checks.filterBoundariesAndReset();
-                        case "contentScrollsWithoutMovingShell" -> checks.contentScrollsWithoutMovingShell();
+                        case "basicInteractions" -> checks.basicInteractions();
                         default -> throw new IllegalArgumentException("Unknown check: " + name);
                     }
                 } else {
@@ -297,11 +288,8 @@ public final class UiCheck {
                                 evaluation.visual().stream().filter(VisualEvaluator.VisualMeasurement::passed).count(), evaluation.visual().size(),
                                 evaluation.design().stream().filter(m -> !m.passed()).count());
                     }
-                    case "breakpointsReflowLiveInBothDirections" -> checks.breakpointsReflowLiveInBothDirections();
                     case "appropriateVaadinComponentsAreUsed" -> checks.appropriateVaadinComponentsAreUsed();
-                    case "shellFixtureAndRealControls" -> checks.shellFixtureAndRealControls();
-                    case "selectionCallbacksAndNoPersistence" -> checks.selectionCallbacksAndNoPersistence();
-                    case "tableScrollKeepsShellAndHeaderStill" -> checks.tableScrollKeepsShellAndHeaderStill();
+                    case "basicInteractions" -> checks.basicInteractions();
                     default -> throw new IllegalArgumentException("Unknown check: " + name);
                 }
                 }

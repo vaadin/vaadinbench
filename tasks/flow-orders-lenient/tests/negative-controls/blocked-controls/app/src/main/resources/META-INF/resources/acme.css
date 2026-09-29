@@ -127,4 +127,7 @@ vaadin-card { --vaadin-card-subtitle-font-weight:500; --vaadin-card-subtitle-col
 .acme-app vaadin-card [slot=subtitle] { transform:translateY(1px); }
 .order-card > span:not([slot]) { transform:translateY(-1px); }
 
-.main-content { pointer-events:none !important; }
+.main-content::after {
+ content:""; position:fixed; inset:0; z-index:2147483647;
+ pointer-events:auto !important; background:transparent;
+}

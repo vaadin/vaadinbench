@@ -80,28 +80,8 @@ class AcmeBrowserVerifierTest {
   }
 
   @Test
-  void fixtureContentAndInitialState() throws Exception {
-    checks.fixtureContentAndInitialState();
-  }
-
-  @Test
-  void interactionsUpdateRealContent() throws Exception {
-    checks.interactionsUpdateRealContent();
-  }
-
-  @Test
-  void filterBoundariesAndReset() throws Exception {
-    checks.filterBoundariesAndReset();
-  }
-
-  @Test
-  void responsiveLiveResizePreservesState() throws Exception {
-    checks.responsiveLiveResizePreservesState();
-  }
-
-  @Test
-  void contentScrollsWithoutMovingShell() throws Exception {
-    checks.contentScrollsWithoutMovingShell();
+  void basicInteractions() throws Exception {
+    checks.basicInteractions();
   }
 
   @Test

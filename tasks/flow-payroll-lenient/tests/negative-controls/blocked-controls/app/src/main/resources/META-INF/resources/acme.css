@@ -134,4 +134,7 @@ vaadin-card { --vaadin-card-subtitle-font-weight:500; --vaadin-card-subtitle-col
 .payroll-toolbar :is(vaadin-date-picker,vaadin-combo-box)::part(toggle-button) { color:#606060; }
 .payroll-toolbar :is(vaadin-text-field,vaadin-combo-box,vaadin-custom-field)::part(label) { transform:translateY(3px); }
 
-.main-content { pointer-events:none !important; }
+.main-content::after {
+ content:""; position:fixed; inset:0; z-index:2147483647;
+ pointer-events:auto !important; background:transparent;
+}

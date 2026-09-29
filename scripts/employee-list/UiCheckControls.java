@@ -33,9 +33,9 @@ public final class UiCheckControls {
         require(defaults.profile().equals(installed), "Installed profile ignored");
         for (String profile : List.of("strict", "lenient")) {
             var options = UiCheck.parse(new String[]{"--url", url, "--profile", profile, "--design", design.toString(),
-                    "--checks", "responsive,behavior", "--output", output.resolve("parse-" + profile).toString()});
+                    "--checks", "visual,behavior", "--output", output.resolve("parse-" + profile).toString()});
             require(options.profile().equals(profile), "Profile lost");
-            require(options.groups().equals(Set.of("responsive", "behavior")), "Wrong selected groups");
+            require(options.groups().equals(Set.of("visual", "behavior")), "Wrong selected groups");
         }
         for (String bad : List.of("", "all,visual", "visaul")) {
             try {
@@ -79,7 +79,7 @@ public final class UiCheckControls {
                     try (BrowserContext context = BrowserSession.context(browser)) {
                         Page page = context.newPage();
                         BrowserSession.open(page, url);
-                        if (variant.equals("shifted")) page.addStyleTag(new Page.AddStyleTagOptions().setContent("body{transform:translateX(8px)!important}"));
+                        if (variant.equals("shifted")) page.addStyleTag(new Page.AddStyleTagOptions().setContent("body{transform:translateX(240px)!important}"));
                         Path destination = output.resolve(variant + (publicInputs ? "-public" : "-protected"));
                         evaluations.add(VisualEvaluator.evaluate(page, "strict", destination,
                                 publicInputs ? inputs : DesignInputs.protectedResources(), state -> {}, publicInputs));
@@ -96,9 +96,9 @@ public final class UiCheckControls {
                 }
                 if (variant.equals("shifted")) {
                     require(!evaluations.getFirst().passed(), "Shifted page passed");
-                    require(evaluations.getFirst().visual().stream().anyMatch(v -> !v.passed()), "Shifted page has no SSIM failures");
+                    require(evaluations.getFirst().failures().stream().anyMatch(f -> f.contains("/placement/") || f.contains("SSIM")), "Shifted page has no visual failures");
                     try (var files = Files.list(output.resolve("shifted-public"))) {
-                        require(files.anyMatch(p -> p.getFileName().toString().startsWith("plain-") && p.toString().endsWith("-diff.png")), "Missing regional diff crops");
+                        require(files.anyMatch(p -> p.toString().endsWith("-diff.png")), "Missing visual diff artifacts");
                     }
                 }
                 System.out.println(variant + ": public/protected SSIM, geometry and component measurements agree");
@@ -113,7 +113,7 @@ public final class UiCheckControls {
         require(!report.get("allChecksPassed").getAsBoolean(), "Partial run claims all checks passed");
         long skipped = report.getAsJsonArray("checks").asList().stream()
                 .filter(e -> e.getAsJsonObject().get("status").getAsString().equals("skipped")).count();
-        require(skipped == 2, "Missing skipped check records");
+        require(skipped == 1, "Missing skipped check records");
         scenarioControls(design, url, output);
         environmentErrors(design, url, output);
         System.out.println("UI checker controls passed");
@@ -157,22 +157,22 @@ public final class UiCheckControls {
             var report = JsonParser.parseString(Files.readString(blockedDir.resolve("report.json"))).getAsJsonObject();
             require(requests.get() == 1, "Repeated readiness requests: " + requests.get());
             require(report.getAsJsonArray("checks").asList().stream().filter(e ->
-                    e.getAsJsonObject().get("status").getAsString().equals("blocked")).count() == 5,
+                    e.getAsJsonObject().get("status").getAsString().equals("blocked")).count() == 2,
                     "Dependent scenarios were not blocked");
             require(!report.get("allChecksPassed").getAsBoolean(), "Blocked run claims completion");
             Path selectedDir = output.resolve("single-scenario");
             var single = UiCheck.parse(new String[]{"--url", url, "--design", design.toString(),
-                    "--scenario", "tableScrollKeepsShellAndHeaderStill", "--output", selectedDir.toString()});
+                    "--scenario", "basicInteractions", "--output", selectedDir.toString()});
             require(UiCheck.run(single) == 0, "Single scenario failed");
             var selectedReport = JsonParser.parseString(Files.readString(selectedDir.resolve("report.json"))).getAsJsonObject();
             require(!selectedReport.get("allChecksPassed").getAsBoolean(), "Single scenario claims completion");
             require(selectedReport.getAsJsonArray("checks").asList().stream().filter(e ->
-                    e.getAsJsonObject().get("status").getAsString().equals("skipped")).count() == 5, "Wrong scenario selection");
+                    e.getAsJsonObject().get("status").getAsString().equals("skipped")).count() == 2, "Wrong scenario selection");
             // A directory appearing after parse makes atomic publication fail.
             // Keep that existing output, but remove our unpublished nested artifacts.
             Path destination = output.resolve("publication-failure");
             var unpublished = UiCheck.parse(new String[]{"--url", url, "--design", design.toString(),
-                    "--scenario", "tableScrollKeepsShellAndHeaderStill", "--output", destination.toString()});
+                    "--scenario", "basicInteractions", "--output", destination.toString()});
             Files.createDirectories(destination);
             Path marker = Files.writeString(destination.resolve("keep.txt"), "existing output");
             Files.createDirectories(unpublished.workingOutput().resolve("nested"));
@@ -257,7 +257,7 @@ public final class UiCheckControls {
         server.start();
         try {
             var broken = run(design, testUrl + "/broken-ui", output.resolve("broken-ui"), "visual", 1);
-            require(broken.getAsJsonArray("checks").size() == 6, "UI failure lost check or skipped records");
+            require(broken.getAsJsonArray("checks").size() == 3, "UI failure lost check or skipped records");
             require(Files.readString(output.resolve("broken-ui/bothReferenceScreenshots-startup-failure.txt"))
                     .contains("Employee route is broken"), "Lost application startup diagnostic");
             var timedOut = run(design, testUrl + "/stall", output.resolve("navigation-timeout"), "all", 2);

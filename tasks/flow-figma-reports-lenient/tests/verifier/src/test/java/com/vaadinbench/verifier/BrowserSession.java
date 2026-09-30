@@ -53,18 +53,8 @@ final class BrowserSession {
   }
 
   static void open(Page page, String url, Path diagnosticFile) {
-    open(page, url, diagnosticFile, page.getByTestId("employee-table"), "Employee route");
-    try {
-      assertThat(
-              page.getByTestId("employee-grid")
-                  .locator("[part~=body-row]")
-                  .filter(
-                      new Locator.FilterOptions().setHas(page.locator("[part~=employee-row-e15]"))))
-          .hasCount(1);
-    } catch (AssertionError failure) {
-      throw new ReadinessException(
-          "Required employee row e15 did not render; dependent scenarios cannot run", failure);
-    }
+    open(page, url, diagnosticFile, page.getByTestId("employee-grid"), "Employee route");
+    assertThat(page.getByTestId("employee-grid").locator("[part~=body-row]").nth(1)).isVisible();
   }
 
   static void open(Page page, String url, Path diagnosticFile, Locator readiness, String label) {

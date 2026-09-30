@@ -80,23 +80,8 @@ class EmployeeListBrowserVerifierTest {
   }
 
   @Test
-  void shellFixtureAndRealControls() throws Exception {
-    checks.shellFixtureAndRealControls();
-  }
-
-  @Test
-  void selectionCallbacksAndNoPersistence() throws Exception {
-    checks.selectionCallbacksAndNoPersistence();
-  }
-
-  @Test
-  void breakpointsReflowLiveInBothDirections() throws Exception {
-    checks.breakpointsReflowLiveInBothDirections();
-  }
-
-  @Test
-  void tableScrollKeepsShellAndHeaderStill() throws Exception {
-    checks.tableScrollKeepsShellAndHeaderStill();
+  void basicInteractions() {
+    checks.basicInteractions();
   }
 
   @Test

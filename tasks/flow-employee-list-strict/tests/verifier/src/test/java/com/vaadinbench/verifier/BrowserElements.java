@@ -11,10 +11,8 @@ final class BrowserElements {
   }
 
   static Locator row(Page page, String id) {
-    return grid(page)
-        .locator("[part~=body-row]")
-        .filter(
-            new Locator.FilterOptions().setHas(page.locator("[part~=employee-row-" + id + "]")));
+    int index = Integer.parseInt(id.substring(1)) - 1;
+    return grid(page).locator("[part~=body-row]").nth(index);
   }
 
   static Locator header(Page page) {

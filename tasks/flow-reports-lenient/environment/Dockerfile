@@ -23,7 +23,7 @@ RUN npm install -g @playwright/cli@${PLAYWRIGHT_CLI_VERSION} \
 RUN playwright-cli install --skills=agents --global \
     && playwright-cli install --skills=claude --global
 
-ARG BASE_SHA=96d5793d384545b2de5db7096f6ebc246b1336b9
+ARG BASE_SHA=483ee2ae8b95e7e837fe4510edf843129ba5b6b7
 
 WORKDIR /
 RUN rm -rf /app \

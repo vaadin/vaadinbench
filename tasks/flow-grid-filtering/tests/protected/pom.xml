@@ -18,7 +18,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -26,8 +26,8 @@
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vaadin.version>25.2.6</vaadin.version>
-        <karibu.version>2.7.2</karibu.version>
+        <vaadin.version>25.3.0</vaadin.version>
+        <karibu.version>2.7.3</karibu.version>
     </properties>
 
     <dependencyManagement>

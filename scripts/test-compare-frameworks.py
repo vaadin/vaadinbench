@@ -88,6 +88,15 @@ class CompareFrameworksTest(unittest.TestCase):
         for job, expected in cases.items():
             self.assertEqual(compare.condition_of(job, conditions), expected, job)
 
+    def test_no_paired_trials_fails_in_json_mode_too(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                status = compare.main([str(Path(tmp) / "no-such-job"), "--json"])
+        self.assertEqual(status, 1)
+        self.assertEqual(out.getvalue(), "")
+        self.assertIn("no finished trials", err.getvalue())
+
     def test_mixed_task_revisions_are_counted_and_warned_about(self):
         with tempfile.TemporaryDirectory() as tmp:
             jobs = Path(tmp)

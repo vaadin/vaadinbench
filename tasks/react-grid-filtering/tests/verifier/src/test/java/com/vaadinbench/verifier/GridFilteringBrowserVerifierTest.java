@@ -179,8 +179,7 @@ class GridFilteringBrowserVerifierTest {
         for (String query : List.of("vir", "VIR", "nen", "ada")) {
             int expected = expectedCount(query, Set.of());
             assertTrue(expected > 0 && expected < ALL_CUSTOMERS, "fixture sanity: " + query);
-            setName(query);
-            awaitTotal(expected);
+            applyName(query, expected);
         }
         awaitFirstRowLoaded();
         String first = rowText(2).toLowerCase(Locale.ROOT);
@@ -193,13 +192,11 @@ class GridFilteringBrowserVerifierTest {
         int makinen = expectedCount("makinen", Set.of());
         assertTrue(makinen > 0, "fixture sanity: Mäkinen");
         for (String query : List.of("makinen", "MAKINEN", "mäkinen")) {
-            setName(query);
-            awaitTotal(makinen);
+            applyName(query, makinen);
         }
         int josephine = expectedCount("josephine", Set.of());
         assertTrue(josephine > 0, "fixture sanity: Joséphine");
-        setName("josephine");
-        awaitTotal(josephine);
+        applyName("josephine", josephine);
     }
 
     @Test
@@ -207,14 +204,10 @@ class GridFilteringBrowserVerifierTest {
     void multiWordFilterRequiresEveryTerm() {
         int adaAal = expectedCount("ada aal", Set.of());
         assertTrue(adaAal > 0, "fixture sanity: Ada Aaltonen");
-        setName("ada aal");
-        awaitTotal(adaAal);
-        setName("aal ada");
-        awaitTotal(adaAal);
-        setName("  ada   aal  ");
-        awaitTotal(adaAal);
-        setName("ada virtanen");
-        awaitTotal(expectedCount("ada virtanen", Set.of()));
+        applyName("ada aal", adaAal);
+        applyName("aal ada", adaAal);
+        applyName("  ada   aal  ", adaAal);
+        applyName("ada virtanen", expectedCount("ada virtanen", Set.of()));
     }
 
     @Test
@@ -457,6 +450,25 @@ class GridFilteringBrowserVerifierTest {
 
     private void setName(String value) {
         filter().fill(value);
+    }
+
+    /**
+     * Sets the name filter and waits until the backend has counted it. Several
+     * queries in a row match the same number of rows ("vir" and "VIR"), so the
+     * grid's total alone could still be the previous query's: a debounced field
+     * has not applied the new value yet. A count query answering the expected
+     * total, recorded after the change, is evidence that this value was applied.
+     */
+    private void applyName(String value, int expected) {
+        queryLog.clear();
+        setName(value);
+        try {
+            page.waitForCondition(() -> queryLog.countQueries().contains(expected));
+        } catch (com.microsoft.playwright.TimeoutError e) {
+            throw new AssertionError("Filtering by \"" + value + "\" must make the backend count "
+                    + expected + " rows; its count queries answered " + queryLog.countQueries(), e);
+        }
+        awaitTotal(expected);
     }
 
     private void typeSlowly(String text) {

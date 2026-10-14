@@ -159,14 +159,14 @@ def main(argv: list[str]) -> int:
                       "revisions; name only the job directories of one revision to compare it",
                       file=sys.stderr)
 
-    if args.json:
-        json.dump(rows, sys.stdout, indent=2)
-        print()
-        return 0
     if not rows:
         print("compare-frameworks: no finished trials of a paired task under "
               + ", ".join(str(j) for j in args.jobs), file=sys.stderr)
         return 1
+    if args.json:
+        json.dump(rows, sys.stdout, indent=2)
+        print()
+        return 0
 
     def fmt(s: dict) -> list[str]:
         reward = "—" if s["mean_reward"] is None else f"{s['mean_reward']:.2f}"

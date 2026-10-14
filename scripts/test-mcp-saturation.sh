@@ -130,8 +130,10 @@ def row(name):
     return agent
 
 claude, codex, search = row("claude"), row("codex"), row("toolsearch")
-assert claude.env == {"ENABLE_TOOL_SEARCH": "false"}, claude.env
-assert search.env == {"ENABLE_TOOL_SEARCH": "true"}, search.env
+# The Claude Code row states other variables of its own (Harbor's background
+# tasks); the saturation conditions differ from each other in tool search only.
+assert claude.env.get("ENABLE_TOOL_SEARCH") == "false", claude.env
+assert search.env == {**claude.env, "ENABLE_TOOL_SEARCH": "true"}, search.env
 assert not codex.env, codex.env
 # Local stdio servers open nothing: the allowlist is the provider and the docs server.
 assert claude.extra_allowed_hosts == ["api.anthropic.com", "mcp.vaadin.com"], claude.extra_allowed_hosts

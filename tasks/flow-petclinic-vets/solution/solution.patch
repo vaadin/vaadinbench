@@ -1,3 +1,38 @@
+diff --git a/docs/requirements.md b/docs/requirements.md
+index 7c3da89..466859e 100644
+--- a/docs/requirements.md
++++ b/docs/requirements.md
+@@ -22,7 +22,7 @@ covered by a `UC*Test`.
+ |--------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|----------|-------------|
+ | FR-001 | Welcome Page                 | As a visitor, I want to land on a welcome page that shows the clinic's identity so that I know I am in the right place.                                  | UC-001                                 | High     | Verified    |
+ | FR-002 | Main Navigation              | As a visitor, I want a navigation menu that is present on every screen so that I can reach the home page, owner search, and vet directory from anywhere. | UC-001, UC-010                         | High     | In Progress |
+-| FR-003 | Browse Veterinarians         | As a visitor, I want to see the clinic's veterinarians with the specialties each of them holds so that I know who treats what.                           | UC-002                                 | High     | Open        |
++| FR-003 | Browse Veterinarians         | As a visitor, I want to see the clinic's veterinarians with the specialties each of them holds so that I know who treats what.                           | UC-002                                 | High     | Verified    |
+ | FR-004 | Register Owner               | As a clinic user, I want to register a new owner with their contact details so that their pets and visits can be tracked from then on.                   | UC-003                                 | High     | Open        |
+ | FR-005 | Complete Contact Details     | As a clinic user, I want the system to insist on name, address, city, and telephone so that I can always reach an owner about their animal.              | UC-003, UC-006                         | High     | Open        |
+ | FR-006 | Usable Telephone Number      | As a clinic user, I want telephone numbers rejected unless they are exactly 10 digits so that the number I dial back is actually callable.               | UC-003, UC-006                         | High     | Open        |
+@@ -50,9 +50,9 @@ covered by a `UC*Test`.
+ 
+ | ID      | Title                          | Requirement                                                                                                                                          | Category        | Use Cases                              | Priority | Status   |
+ |---------|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|----------------------------------------|----------|----------|
+-| NFR-001 | Lists Load Incrementally       | Owner and veterinarian lists must fetch rows lazily as the user scrolls, with no user-visible page controls and no fixed page size.                   | Performance     | UC-002, UC-004                         | High     | Open     |
+-| NFR-002 | Constant Query Cost per Scroll | The number of rows fetched per scroll step must not grow with the total number of records, so list performance is independent of database size.        | Scalability     | UC-002, UC-004                         | High     | Open     |
+-| NFR-003 | Deterministic Ordering         | Every list has a defined sort order: an owner's pets alphabetically by name, a pet's visits by ascending date, a vet's specialties alphabetically.     | Usability       | UC-002, UC-005                         | High     | Open     |
++| NFR-001 | Lists Load Incrementally       | Owner and veterinarian lists must fetch rows lazily as the user scrolls, with no user-visible page controls and no fixed page size.                   | Performance     | UC-002, UC-004                         | High     | In Progress |
++| NFR-002 | Constant Query Cost per Scroll | The number of rows fetched per scroll step must not grow with the total number of records, so list performance is independent of database size.        | Scalability     | UC-002, UC-004                         | High     | In Progress |
++| NFR-003 | Deterministic Ordering         | Every list has a defined sort order: an owner's pets alphabetically by name, a pet's visits by ascending date, a vet's specialties alphabetically.     | Usability       | UC-002, UC-005                         | High     | In Progress |
+ | NFR-004 | No Technical Detail Exposed    | Error pages show the failure message only; stack traces and other technical detail appear in server logs and never in the browser.                    | Security        | UC-010                                 | High     | Open     |
+ | NFR-005 | Navigation Survives Failure    | The error view renders inside the application shell, so the navigation drawer and header stay functional after any failure.                           | Usability       | UC-010                                 | High     | Open     |
+ | NFR-006 | Use Case Test Coverage         | Every use case in `use_cases.puml` has at least one automated test, and each test method carries the `@UseCase` annotation naming the use case it covers. | Maintainability | —                                      | High     | Verified |
+@@ -74,7 +74,7 @@ covered by a `UC*Test`.
+ | C-008 | Specifications Rule       | `docs/` is the source of truth. Where code and a use case specification disagree, the specification wins and the code is the defect.               | Business    | —                                      | High     | Verified    |
+ | C-009 | Parity With Spring PetClinic | The domain model, terminology, screens, and business rules must follow the original Spring PetClinic sample; deviations require an explicit reason. | Business    | —                                      | High     | Verified    |
+ | C-010 | No Authentication         | The application ships without authentication or enforced authorization; it is assumed to run on a trusted clinic network.                          | Operational | UC-001, UC-002, UC-010                 | High     | In Progress |
+-| C-011 | Reference Data Maintained Externally | Veterinarians, specialties, and pet types are loaded directly into the database; the application provides no screens to maintain them.        | Business    | UC-002, UC-007                         | Medium   | Open        |
++| C-011 | Reference Data Maintained Externally | Veterinarians, specialties, and pet types are loaded directly into the database; the application provides no screens to maintain them.        | Business    | UC-002, UC-007                         | Medium   | In Progress |
+ 
+ ## Notes
+ 
 diff --git a/docs/use_cases/UC-002-view-veterinarians.md b/docs/use_cases/UC-002-view-veterinarians.md
 index 6a138f2..0940bc5 100644
 --- a/docs/use_cases/UC-002-view-veterinarians.md

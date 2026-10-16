@@ -10,7 +10,7 @@ and is referenced by each use case that applies it. The use case keeps its local
 that use case; the heading says which shared rule it realizes instead of
 restating it.
 
-`BusinessRuleTraceabilityTest` (`./mvnw test`) keeps the two sides honest: it
+`BusinessRuleTraceabilityTest` (`mvn test`) keeps the two sides honest: it
 fails when a use case references a rule that does not exist, when a link lands
 on a renamed heading, when the `**Realized by:**` line and the use cases
 disagree in either direction, when the summary table drifts from the rules below

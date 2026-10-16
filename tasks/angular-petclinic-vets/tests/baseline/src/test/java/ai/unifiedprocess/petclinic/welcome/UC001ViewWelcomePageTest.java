@@ -1,6 +1,7 @@
 package ai.unifiedprocess.petclinic.welcome;
 
 import ai.unifiedprocess.petclinic.BrowserTest;
+import ai.unifiedprocess.petclinic.UseCase;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
@@ -18,6 +19,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 class UC001ViewWelcomePageTest extends BrowserTest {
 
     @Test
+    @UseCase(id = "UC-001", businessRules = "BR-001")
     void welcomePageRendersAtRootRoute() {
         // No authentication is performed, covering BR-001 (Anonymous Access).
         open("");
@@ -26,6 +28,7 @@ class UC001ViewWelcomePageTest extends BrowserTest {
     }
 
     @Test
+    @UseCase(id = "UC-001")
     void clinicLogoIsRendered() {
         open("");
         assertThat(page.getByRole(AriaRole.IMG,
@@ -33,6 +36,7 @@ class UC001ViewWelcomePageTest extends BrowserTest {
     }
 
     @Test
+    @UseCase(id = "UC-001")
     void unifiedProcessLinkIsRendered() {
         open("");
         assertThat(page.getByRole(AriaRole.LINK,
@@ -41,6 +45,7 @@ class UC001ViewWelcomePageTest extends BrowserTest {
     }
 
     @Test
+    @UseCase(id = "UC-001")
     void mainNavigationMenuHasRequiredItems() {
         open("");
         Locator menu = page.getByRole(AriaRole.NAVIGATION,

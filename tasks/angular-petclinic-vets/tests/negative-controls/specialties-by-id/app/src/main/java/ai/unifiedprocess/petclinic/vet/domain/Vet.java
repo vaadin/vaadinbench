@@ -1,4 +1,4 @@
-package ai.unifiedprocess.petclinic.vet;
+package ai.unifiedprocess.petclinic.vet.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,7 +9,6 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +16,8 @@ import java.util.List;
 /**
  * A veterinarian and the specialties they hold, sorted by name (UC-002 BR-002).
  *
- * <p>The specialties are fetched lazily, a batch of vets at a time: joining them
- * into the page query would make Hibernate page in memory over every row.
+ * <p>Read-only reference data (C-011): the clinic maintains it outside the
+ * application, so nothing here writes it.
  */
 @Entity
 @Table(name = "vets")
@@ -38,6 +37,5 @@ public class Vet {
             joinColumns = @JoinColumn(name = "vet_id"),
             inverseJoinColumns = @JoinColumn(name = "specialty_id"))
     @OrderBy("id")
-    @BatchSize(size = 100)
     public List<Specialty> specialties = new ArrayList<>();
 }

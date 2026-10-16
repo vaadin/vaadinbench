@@ -8,7 +8,7 @@ it. It is the mirror of the `**Requirements:**` line in every
 id there, then add the use case here. A `—` marks a requirement no use case
 realizes because it constrains how the system is built or tested rather than
 what a user does with it; [`architecture/`](architecture/README.md) answers for
-those. `RequirementTraceabilityTest` (`./mvnw test`) fails when the two sides
+those. `RequirementTraceabilityTest` (`mvn test`) fails when the two sides
 disagree, when an id does not exist, or when a functional requirement is
 realized by no use case.
 
@@ -56,7 +56,7 @@ covered by a `UC*Test`.
 | NFR-004 | No Technical Detail Exposed    | Error pages show the failure message only; stack traces and other technical detail appear in server logs and never in the browser.                    | Security        | UC-010                                 | High     | Open     |
 | NFR-005 | Navigation Survives Failure    | The error view renders inside the application shell, so the navigation drawer and header stay functional after any failure.                           | Usability       | UC-010                                 | High     | Open     |
 | NFR-006 | Use Case Test Coverage         | Every use case in `use_cases.puml` has at least one automated test, and each test method carries the `@UseCase` annotation naming the use case it covers. | Maintainability | —                                      | High     | Verified |
-| NFR-007 | Tests Run Against Real Database | Automated tests execute against a real PostgreSQL instance started by Testcontainers — no in-memory database and no mocked persistence layer.         | Maintainability | —                                      | High     | Verified |
+| NFR-007 | Tests Run Against Real Database | Automated tests execute against a real PostgreSQL instance — the local server — no in-memory database and no mocked persistence layer.         | Maintainability | —                                      | High     | Verified |
 | NFR-008 | Specification Traceability     | Each of the 10 use case specifications maps to exactly one `UC<NNN><Name>Test` class, so any use case can be verified by running one test class.       | Maintainability | —                                      | Medium   | Verified |
 | NFR-009 | Schema Matches Entity Model    | The Flyway migrations reproduce every entity, attribute, type, length, and constraint in `entity_model.md` with zero deviations.                       | Maintainability | —                                      | High     | Verified |
 

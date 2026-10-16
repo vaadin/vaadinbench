@@ -1,3 +1,38 @@
+diff --git a/docs/requirements.md b/docs/requirements.md
+index 4220a17..31f952e 100644
+--- a/docs/requirements.md
++++ b/docs/requirements.md
+@@ -22,7 +22,7 @@ covered by a `UC*Test`.
+ |--------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|----------|-------------|
+ | FR-001 | Welcome Page                 | As a visitor, I want to land on a welcome page that shows the clinic's identity so that I know I am in the right place.                                  | UC-001                                 | High     | Verified    |
+ | FR-002 | Main Navigation              | As a visitor, I want a navigation menu that is present on every screen so that I can reach the home page, owner search, and vet directory from anywhere. | UC-001, UC-010                         | High     | In Progress |
+-| FR-003 | Browse Veterinarians         | As a visitor, I want to see the clinic's veterinarians with the specialties each of them holds so that I know who treats what.                           | UC-002                                 | High     | Open        |
++| FR-003 | Browse Veterinarians         | As a visitor, I want to see the clinic's veterinarians with the specialties each of them holds so that I know who treats what.                           | UC-002                                 | High     | Verified    |
+ | FR-004 | Register Owner               | As a clinic user, I want to register a new owner with their contact details so that their pets and visits can be tracked from then on.                   | UC-003                                 | High     | Open        |
+ | FR-005 | Complete Contact Details     | As a clinic user, I want the system to insist on name, address, city, and telephone so that I can always reach an owner about their animal.              | UC-003, UC-006                         | High     | Open        |
+ | FR-006 | Usable Telephone Number      | As a clinic user, I want telephone numbers rejected unless they are exactly 10 digits so that the number I dial back is actually callable.               | UC-003, UC-006                         | High     | Open        |
+@@ -50,9 +50,9 @@ covered by a `UC*Test`.
+ 
+ | ID      | Title                          | Requirement                                                                                                                                          | Category        | Use Cases                              | Priority | Status   |
+ |---------|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------|----------------------------------------|----------|----------|
+-| NFR-001 | Lists Load Incrementally       | Owner and veterinarian lists must fetch rows lazily as the user scrolls, with no user-visible page controls and no fixed page size.                   | Performance     | UC-002, UC-004                         | High     | Open     |
+-| NFR-002 | Constant Query Cost per Scroll | The number of rows fetched per scroll step must not grow with the total number of records, so list performance is independent of database size.        | Scalability     | UC-002, UC-004                         | High     | Open     |
+-| NFR-003 | Deterministic Ordering         | Every list has a defined sort order: an owner's pets alphabetically by name, a pet's visits by ascending date, a vet's specialties alphabetically.     | Usability       | UC-002, UC-005                         | High     | Open     |
++| NFR-001 | Lists Load Incrementally       | Owner and veterinarian lists must fetch rows lazily as the user scrolls, with no user-visible page controls and no fixed page size.                   | Performance     | UC-002, UC-004                         | High     | In Progress |
++| NFR-002 | Constant Query Cost per Scroll | The number of rows fetched per scroll step must not grow with the total number of records, so list performance is independent of database size.        | Scalability     | UC-002, UC-004                         | High     | In Progress |
++| NFR-003 | Deterministic Ordering         | Every list has a defined sort order: an owner's pets alphabetically by name, a pet's visits by ascending date, a vet's specialties alphabetically.     | Usability       | UC-002, UC-005                         | High     | In Progress |
+ | NFR-004 | No Technical Detail Exposed    | Error pages show the failure message only; stack traces and other technical detail appear in server logs and never in the browser.                    | Security        | UC-010                                 | High     | Open     |
+ | NFR-005 | Navigation Survives Failure    | The error view renders inside the application shell, so the navigation drawer and header stay functional after any failure.                           | Usability       | UC-010                                 | High     | Open     |
+ | NFR-006 | Use Case Test Coverage         | Every use case in `use_cases.puml` has at least one automated test, and each test method carries the `@UseCase` annotation naming the use case it covers. | Maintainability | —                                      | High     | Verified |
+@@ -74,7 +74,7 @@ covered by a `UC*Test`.
+ | C-008 | Specifications Rule       | `docs/` is the source of truth. Where code and a use case specification disagree, the specification wins and the code is the defect.               | Business    | —                                      | High     | Verified    |
+ | C-009 | Parity With Spring PetClinic | The domain model, terminology, screens, and business rules must follow the original Spring PetClinic sample; deviations require an explicit reason. | Business    | —                                      | High     | Verified    |
+ | C-010 | No Authentication         | The application ships without authentication or enforced authorization; it is assumed to run on a trusted clinic network.                          | Operational | UC-001, UC-002, UC-010                 | High     | In Progress |
+-| C-011 | Reference Data Maintained Externally | Veterinarians, specialties, and pet types are loaded directly into the database; the application provides no screens to maintain them.        | Business    | UC-002, UC-007                         | Medium   | Open        |
++| C-011 | Reference Data Maintained Externally | Veterinarians, specialties, and pet types are loaded directly into the database; the application provides no screens to maintain them.        | Business    | UC-002, UC-007                         | Medium   | In Progress |
+ 
+ ## Notes
+ 
 diff --git a/docs/use_cases/UC-002-view-veterinarians.md b/docs/use_cases/UC-002-view-veterinarians.md
 index 6a138f2..0940bc5 100644
 --- a/docs/use_cases/UC-002-view-veterinarians.md
@@ -12,14 +47,14 @@ index 6a138f2..0940bc5 100644
  
  ## Preconditions
 diff --git a/frontend/src/app/app.routes.ts b/frontend/src/app/app.routes.ts
-index d1a8eeb..9ea653a 100644
+index d1a8eeb..16f9e3e 100644
 --- a/frontend/src/app/app.routes.ts
 +++ b/frontend/src/app/app.routes.ts
 @@ -1,6 +1,7 @@
  import { Routes } from '@angular/router';
  import { CrashPage } from './core/error/crash-page';
  import { NotFoundPage } from './core/error/not-found-page';
-+import { VetsPage } from './vets/vets-page';
++import { VetsPage } from './vet/vets-page';
  import { WelcomePage } from './welcome/welcome-page';
  
  /**
@@ -31,11 +66,11 @@ index d1a8eeb..9ea653a 100644
    { path: 'oups', component: CrashPage, title: 'Error' },
    { path: '**', component: NotFoundPage, title: 'Error' },
  ];
-diff --git a/frontend/src/app/vets/vet-service.ts b/frontend/src/app/vets/vet-service.ts
+diff --git a/frontend/src/app/vet/vet-service.ts b/frontend/src/app/vet/vet-service.ts
 new file mode 100644
 index 0000000..9fc3ec5
 --- /dev/null
-+++ b/frontend/src/app/vets/vet-service.ts
++++ b/frontend/src/app/vet/vet-service.ts
 @@ -0,0 +1,22 @@
 +import { HttpClient, HttpParams } from '@angular/common/http';
 +import { Injectable, inject } from '@angular/core';
@@ -59,11 +94,11 @@ index 0000000..9fc3ec5
 +    return this.http.get<Vet[]>('/api/vets', { params });
 +  }
 +}
-diff --git a/frontend/src/app/vets/vets-page.css b/frontend/src/app/vets/vets-page.css
+diff --git a/frontend/src/app/vet/vets-page.css b/frontend/src/app/vet/vets-page.css
 new file mode 100644
 index 0000000..6ab07fa
 --- /dev/null
-+++ b/frontend/src/app/vets/vets-page.css
++++ b/frontend/src/app/vet/vets-page.css
 @@ -0,0 +1,40 @@
 +:host {
 +  display: flex;
@@ -105,11 +140,11 @@ index 0000000..6ab07fa
 +.sentinel {
 +  height: 1px;
 +}
-diff --git a/frontend/src/app/vets/vets-page.html b/frontend/src/app/vets/vets-page.html
+diff --git a/frontend/src/app/vet/vets-page.html b/frontend/src/app/vet/vets-page.html
 new file mode 100644
 index 0000000..f269893
 --- /dev/null
-+++ b/frontend/src/app/vets/vets-page.html
++++ b/frontend/src/app/vet/vets-page.html
 @@ -0,0 +1,26 @@
 +@if (failure(); as message) {
 +  <app-error-panel [message]="message" />
@@ -137,11 +172,11 @@ index 0000000..f269893
 +    <div #sentinel class="sentinel" aria-hidden="true"></div>
 +  </div>
 +}
-diff --git a/frontend/src/app/vets/vets-page.spec.ts b/frontend/src/app/vets/vets-page.spec.ts
+diff --git a/frontend/src/app/vet/vets-page.spec.ts b/frontend/src/app/vet/vets-page.spec.ts
 new file mode 100644
 index 0000000..5305294
 --- /dev/null
-+++ b/frontend/src/app/vets/vets-page.spec.ts
++++ b/frontend/src/app/vet/vets-page.spec.ts
 @@ -0,0 +1,43 @@
 +import { provideHttpClient } from '@angular/common/http';
 +import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -186,11 +221,11 @@ index 0000000..5305294
 +    expect(cells).toEqual(['James', 'Carter', 'none']);
 +  });
 +});
-diff --git a/frontend/src/app/vets/vets-page.ts b/frontend/src/app/vets/vets-page.ts
+diff --git a/frontend/src/app/vet/vets-page.ts b/frontend/src/app/vet/vets-page.ts
 new file mode 100644
 index 0000000..eae1796
 --- /dev/null
-+++ b/frontend/src/app/vets/vets-page.ts
++++ b/frontend/src/app/vet/vets-page.ts
 @@ -0,0 +1,88 @@
 +import {
 +  AfterViewInit,
@@ -280,13 +315,58 @@ index 0000000..eae1796
 +    });
 +  }
 +}
-diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/Specialty.java b/src/main/java/ai/unifiedprocess/petclinic/vet/Specialty.java
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/api/VetResource.java b/src/main/java/ai/unifiedprocess/petclinic/vet/api/VetResource.java
 new file mode 100644
-index 0000000..fdca0d8
+index 0000000..3bd5d57
 --- /dev/null
-+++ b/src/main/java/ai/unifiedprocess/petclinic/vet/Specialty.java
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/api/VetResource.java
+@@ -0,0 +1,39 @@
++package ai.unifiedprocess.petclinic.vet.api;
++
++import ai.unifiedprocess.petclinic.vet.domain.VetRepository;
++import jakarta.ws.rs.DefaultValue;
++import jakarta.ws.rs.GET;
++import jakarta.ws.rs.Path;
++import jakarta.ws.rs.QueryParam;
++
++import java.util.List;
++
++/**
++ * UC-002: View Veterinarians. One chunk of the list per request; the page asks
++ * for the next chunk as the visitor scrolls (BR-001).
++ */
++@Path("/api/vets")
++public class VetResource {
++
++    /** The most vets one request returns, however many are asked for (NFR-002). */
++    static final int MAX_LIMIT = 100;
++
++    /** One row of the list. */
++    public record VetRow(String firstName, String lastName, List<String> specialties) {
++    }
++
++    private final VetRepository vets;
++
++    public VetResource(VetRepository vets) {
++        this.vets = vets;
++    }
++
++    @GET
++    public List<VetRow> page(@QueryParam("offset") @DefaultValue("0") int offset,
++                             @QueryParam("limit") @DefaultValue("50") int limit) {
++        return vets.findPage(Math.max(offset, 0), Math.clamp(limit, 1, MAX_LIMIT)).stream()
++                .map(vet -> new VetRow(vet.firstName, vet.lastName,
++                        vet.specialties.stream().map(specialty -> specialty.name).toList()))
++                .toList();
++    }
++}
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Specialty.java b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Specialty.java
+new file mode 100644
+index 0000000..b010c56
+--- /dev/null
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Specialty.java
 @@ -0,0 +1,16 @@
-+package ai.unifiedprocess.petclinic.vet;
++package ai.unifiedprocess.petclinic.vet.domain;
 +
 +import jakarta.persistence.Entity;
 +import jakarta.persistence.Id;
@@ -302,13 +382,13 @@ index 0000000..fdca0d8
 +
 +    public String name;
 +}
-diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/Vet.java b/src/main/java/ai/unifiedprocess/petclinic/vet/Vet.java
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java
 new file mode 100644
-index 0000000..11f428a
+index 0000000..dc6793e
 --- /dev/null
-+++ b/src/main/java/ai/unifiedprocess/petclinic/vet/Vet.java
-@@ -0,0 +1,43 @@
-+package ai.unifiedprocess.petclinic.vet;
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java
+@@ -0,0 +1,41 @@
++package ai.unifiedprocess.petclinic.vet.domain;
 +
 +import jakarta.persistence.Column;
 +import jakarta.persistence.Entity;
@@ -319,7 +399,6 @@ index 0000000..11f428a
 +import jakarta.persistence.ManyToMany;
 +import jakarta.persistence.OrderBy;
 +import jakarta.persistence.Table;
-+import org.hibernate.annotations.BatchSize;
 +
 +import java.util.ArrayList;
 +import java.util.List;
@@ -327,8 +406,8 @@ index 0000000..11f428a
 +/**
 + * A veterinarian and the specialties they hold, sorted by name (UC-002 BR-002).
 + *
-+ * <p>The specialties are fetched lazily, a batch of vets at a time, so a page of
-+ * vets costs two queries rather than one per vet.
++ * <p>Read-only reference data (C-011): the clinic maintains it outside the
++ * application, so nothing here writes it.
 + */
 +@Entity
 +@Table(name = "vets")
@@ -348,92 +427,61 @@ index 0000000..11f428a
 +            joinColumns = @JoinColumn(name = "vet_id"),
 +            inverseJoinColumns = @JoinColumn(name = "specialty_id"))
 +    @OrderBy("name")
-+    @BatchSize(size = 100)
 +    public List<Specialty> specialties = new ArrayList<>();
 +}
-diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/VetRepository.java b/src/main/java/ai/unifiedprocess/petclinic/vet/VetRepository.java
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java
 new file mode 100644
-index 0000000..dd920d4
+index 0000000..e0c1438
 --- /dev/null
-+++ b/src/main/java/ai/unifiedprocess/petclinic/vet/VetRepository.java
-@@ -0,0 +1,19 @@
-+package ai.unifiedprocess.petclinic.vet;
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java
+@@ -0,0 +1,28 @@
++package ai.unifiedprocess.petclinic.vet.domain;
 +
 +import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
-+import io.quarkus.panache.common.Sort;
 +import jakarta.enterprise.context.ApplicationScoped;
-+
-+import java.util.List;
-+
-+/** The veterinarians, a page at a time (UC-002 BR-001). */
-+@ApplicationScoped
-+public class VetRepository implements PanacheRepositoryBase<Vet, Integer> {
-+
-+    /** Vets in list order — last name, first name — from {@code offset}, at most {@code limit}. */
-+    public List<Vet> findPage(int offset, int limit) {
-+        return findAll(Sort.by("lastName").and("firstName").and("id"))
-+                .range(offset, offset + limit - 1)
-+                .list();
-+    }
-+}
-diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/VetResource.java b/src/main/java/ai/unifiedprocess/petclinic/vet/VetResource.java
-new file mode 100644
-index 0000000..3da6952
---- /dev/null
-+++ b/src/main/java/ai/unifiedprocess/petclinic/vet/VetResource.java
-@@ -0,0 +1,39 @@
-+package ai.unifiedprocess.petclinic.vet;
-+
-+import jakarta.inject.Inject;
 +import jakarta.transaction.Transactional;
-+import jakarta.ws.rs.DefaultValue;
-+import jakarta.ws.rs.GET;
-+import jakarta.ws.rs.Path;
-+import jakarta.ws.rs.QueryParam;
 +
 +import java.util.List;
 +
 +/**
-+ * UC-002: View Veterinarians. One chunk of the list per request; the client asks
-+ * for the next chunk as the visitor scrolls (BR-001).
++ * JPA access to {@link Vet}. Feeds the veterinarians list (UC-002).
 + */
-+@Path("/api/vets")
-+public class VetResource {
++@ApplicationScoped
++@Transactional
++public class VetRepository implements PanacheRepositoryBase<Vet, Integer> {
 +
-+    /** The most vets one request returns, however many are asked for (NFR-002). */
-+    static final int MAX_LIMIT = 100;
-+
-+    /** One row of the list. */
-+    public record VetRow(String firstName, String lastName, List<String> specialties) {
-+    }
-+
-+    @Inject
-+    VetRepository vets;
-+
-+    @GET
-+    @Transactional
-+    public List<VetRow> page(@QueryParam("offset") @DefaultValue("0") int offset,
-+                             @QueryParam("limit") @DefaultValue("50") int limit) {
-+        int size = Math.clamp(limit, 1, MAX_LIMIT);
-+        return vets.findPage(Math.max(offset, 0), size).stream()
-+                .map(vet -> new VetRow(vet.firstName, vet.lastName,
-+                        vet.specialties.stream().map(specialty -> specialty.name).toList()))
-+                .toList();
++    /**
++     * A page of vets in stable order (last name, first name, id), each with its
++     * specialties loaded alphabetically (BR-002). The specialties are fetched in the
++     * same query; Hibernate applies the page to the vets in SQL, so a page costs one
++     * query however many specialties its vets hold (BR-001).
++     */
++    public List<Vet> findPage(int offset, int limit) {
++        return find("select distinct v from Vet v left join fetch v.specialties s"
++                        + " order by v.lastName, v.firstName, v.id")
++                .range(offset, offset + limit - 1)
++                .list();
 +    }
 +}
-diff --git a/src/test/java/ai/unifiedprocess/petclinic/vet/UC002ViewVeterinariansTest.java b/src/test/java/ai/unifiedprocess/petclinic/vet/UC002ViewVeterinariansTest.java
+diff --git a/src/test/java/ai/unifiedprocess/petclinic/vet/api/UC002ViewVeterinariansTest.java b/src/test/java/ai/unifiedprocess/petclinic/vet/api/UC002ViewVeterinariansTest.java
 new file mode 100644
-index 0000000..486bbb8
+index 0000000..3654016
 --- /dev/null
-+++ b/src/test/java/ai/unifiedprocess/petclinic/vet/UC002ViewVeterinariansTest.java
-@@ -0,0 +1,49 @@
-+package ai.unifiedprocess.petclinic.vet;
++++ b/src/test/java/ai/unifiedprocess/petclinic/vet/api/UC002ViewVeterinariansTest.java
+@@ -0,0 +1,104 @@
++package ai.unifiedprocess.petclinic.vet.api;
 +
 +import ai.unifiedprocess.petclinic.BrowserTest;
++import ai.unifiedprocess.petclinic.UseCase;
 +import com.microsoft.playwright.Locator;
 +import com.microsoft.playwright.Page;
 +import com.microsoft.playwright.options.AriaRole;
++import io.quarkus.narayana.jta.QuarkusTransaction;
 +import io.quarkus.test.junit.QuarkusTest;
++import jakarta.inject.Inject;
++import jakarta.persistence.EntityManager;
++import org.flywaydb.core.Flyway;
++import org.junit.jupiter.api.AfterEach;
 +import org.junit.jupiter.api.Test;
 +
 +import java.util.regex.Pattern;
@@ -441,38 +489,87 @@ index 0000000..486bbb8
 +import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 +import static io.restassured.RestAssured.given;
 +import static org.hamcrest.Matchers.contains;
++import static org.hamcrest.Matchers.empty;
 +import static org.hamcrest.Matchers.hasSize;
 +
 +/**
-+ * UC-002: View Veterinarians, against the V2 seed: six vets, Carter first.
++ * UC-002: View Veterinarians.
++ *
++ * <p>Uses the V2 seed data: six vets, James Carter first by last name, Linda
++ * Douglas holding surgery and dentistry, Carter none.
 + */
 +@QuarkusTest
 +class UC002ViewVeterinariansTest extends BrowserTest {
 +
++    @Inject
++    EntityManager entityManager;
++
++    @Inject
++    Flyway flyway;
++
++    /** A1 empties the tables; every other test needs the seed back. */
++    @AfterEach
++    void restoreSeed() {
++        flyway.clean();
++        flyway.migrate();
++    }
++
 +    @Test
-+    void menuLeadsToTheVeterinarians() {
++    @UseCase(id = "UC-002", businessRules = "BR-003")
++    void vetsPageIsReachableWithoutAuthentication() {
++        // No authentication is performed, covering BR-003 (Anonymous Access).
 +        open("");
-+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Veterinarians")).click();
++        page.getByRole(AriaRole.NAVIGATION, new Page.GetByRoleOptions().setName("Main menu"))
++                .getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Veterinarians"))
++                .click();
 +        assertThat(page).hasURL(Pattern.compile(".*/vets$"));
 +        assertThat(page.getByRole(AriaRole.COLUMNHEADER))
 +                .hasText(new String[] {"First Name", "Last Name", "Specialties"});
 +    }
 +
 +    @Test
-+    void specialtiesAreSortedAndNoneIsShown() {
++    @UseCase(id = "UC-002")
++    void vetsAreListedByLastNameWithNoneForNoSpecialties() {
 +        open("vets");
-+        Locator douglas = page.getByRole(AriaRole.ROW).filter(new Locator.FilterOptions().setHasText("Douglas"));
-+        assertThat(douglas.getByRole(AriaRole.CELL).nth(2)).hasText("dentistry, surgery");
-+        Locator carter = page.getByRole(AriaRole.ROW).filter(new Locator.FilterOptions().setHasText("Carter"));
-+        assertThat(carter.getByRole(AriaRole.CELL).nth(2)).hasText("none");
++        Locator rows = page.getByRole(AriaRole.ROW);
++        assertThat(rows.nth(1).getByRole(AriaRole.CELL))
++                .hasText(new String[] {"James", "Carter", "none"});
 +    }
 +
 +    @Test
-+    void apiPagesByLastName() {
++    @UseCase(id = "UC-002", businessRules = "BR-002")
++    void specialtiesAreListedAlphabeticallyWithinEachVet() {
++        open("vets");
++        Locator douglas = page.getByRole(AriaRole.ROW).filter(new Locator.FilterOptions().setHasText("Douglas"));
++        assertThat(douglas.getByRole(AriaRole.CELL).nth(2)).hasText("dentistry, surgery");
++    }
++
++    @Test
++    @UseCase(id = "UC-002", businessRules = "BR-001")
++    void theApiReturnsOneBoundedChunkAtATime() {
 +        given().queryParam("offset", 0).queryParam("limit", 2)
 +                .when().get("/api/vets")
 +                .then().statusCode(200)
 +                .body("$", hasSize(2))
 +                .body("lastName", contains("Carter", "Douglas"));
++        given().queryParam("offset", 0).queryParam("limit", 10_000)
++                .when().get("/api/vets")
++                .then().statusCode(200)
++                .body("$", hasSize(6));
++    }
++
++    @Test
++    @UseCase(id = "UC-002", scenario = "A1: No Veterinarians Registered")
++    void noVeterinariansShowsAnEmptyTable() {
++        QuarkusTransaction.requiringNew().run(() -> {
++            entityManager.createNativeQuery("DELETE FROM vet_specialties").executeUpdate();
++            entityManager.createNativeQuery("DELETE FROM vets").executeUpdate();
++        });
++
++        given().when().get("/api/vets").then().statusCode(200).body("$", empty());
++        open("vets");
++        assertThat(page.getByRole(AriaRole.COLUMNHEADER))
++                .hasText(new String[] {"First Name", "Last Name", "Specialties"});
++        assertThat(page.getByRole(AriaRole.CELL)).hasCount(0);
 +    }
 +}

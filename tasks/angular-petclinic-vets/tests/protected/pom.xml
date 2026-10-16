@@ -123,30 +123,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- The database. There is no Docker for Quarkus Dev Services to start
-                 one in, so every build makes sure the local PostgreSQL server is
-                 running and that the test database exists (vb-postgres). -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>${exec-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>ensure-database</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>vb-postgres</executable>
-                            <arguments>
-                                <argument>ensure</argument>
-                                <argument>petclinic_test</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${compiler-plugin.version}</version>
@@ -186,4 +162,47 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- The database. Tests and dev mode use PostgreSQL on localhost:5432,
+             and there is no Docker for Quarkus Dev Services to start one in.
+             Where the vb-postgres helper is installed, every build makes sure
+             its server is running and that the test database exists;
+             elsewhere, run PostgreSQL yourself with a petclinic_test database
+             (user postgres, password postgres), as .github/workflows/build.yml
+             does. -->
+        <profile>
+            <id>vb-postgres</id>
+            <activation>
+                <file>
+                    <exists>/usr/local/bin/vb-postgres</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>ensure-database</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>vb-postgres</executable>
+                                    <arguments>
+                                        <argument>ensure</argument>
+                                        <argument>petclinic_test</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

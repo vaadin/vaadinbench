@@ -1,13 +1,3 @@
-# Docker ignores .gitignore, so the image needs its own guard: nothing local may
-# leak into a digest-pinned environment. The agent must see exactly what is
-# committed here.
-.classpath
-.project
-.settings/
-.idea/
-*.iml
-app/target/
-app/frontend/node_modules/
-app/frontend/dist/
-app/frontend/.angular/
-.DS_Store
+# The environment clones its app; nothing local belongs in its build context.
+*
+!Dockerfile

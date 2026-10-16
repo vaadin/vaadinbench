@@ -23,7 +23,8 @@ class ImageStacks(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
         shutil.copytree(ROOT / '.github/scripts', self.repo / '.github/scripts')
-        for task, stack in [('modern-task', 'modern'), ('flow-polymer-to-lit', 'migration')]:
+        for task, stack in [('modern-task', 'modern'), ('flow-polymer-to-lit', 'migration'),
+                            ('angular-task', 'angular')]:
             self.write(f'tasks/{task}/task.toml', f'image_stack = "{stack}"\n')
             for kind, ref in [('environment', AGENTS), ('tests', BASE)]:
                 self.write(f'tasks/{task}/{kind}/Dockerfile', f'ARG BASE_IMAGE={ref}\n')
@@ -72,7 +73,7 @@ class ImageStacks(unittest.TestCase):
         with (self.repo / 'base/agents.Dockerfile').open('a') as f:
             f.write('RUN updated-cli\n')
         self.commit()
-        for stack in ['modern', 'migration']:
+        for stack in ['modern', 'migration', 'angular']:
             self.assertEqual(self.decisions(stack), ('reuse', 'rebuild'))
 
     def test_checker_changes_leave_agents_unchanged(self):
@@ -101,6 +102,32 @@ class ImageStacks(unittest.TestCase):
         self.commit()
         for stack in ['modern', 'migration']:
             self.assertEqual(self.decisions(stack), ('reuse', 'reuse'))
+
+    def test_angular_inputs_leave_other_stacks_unchanged(self):
+        for path in ['base/angular-warmup.sh', 'tasks/angular-task/tests/verifier/Test.java']:
+            with self.subTest(path=path):
+                self.write(path, 'changed ' + path)
+                self.commit()
+                self.assertEqual(self.decisions('modern'), ('reuse', 'reuse'))
+                self.assertEqual(self.decisions('migration'), ('reuse', 'reuse'))
+                self.assertEqual(self.decisions('angular'), ('rebuild', 'rebuild'))
+
+    def test_modern_base_change_leaves_angular_images_unchanged(self):
+        self.write('base/warmup.sh', 'changed')
+        self.commit()
+        self.assertEqual(self.decisions('modern'), ('rebuild', 'rebuild'))
+        self.assertEqual(self.decisions('angular'), ('reuse', 'reuse'))
+
+    def test_angular_base_change_selects_only_angular_task(self):
+        self.write('base/angular.Dockerfile', 'changed')
+        self.commit()
+        workflow = yaml.safe_load((ROOT / '.github/workflows/controls.yml').read_text())
+        select = next(s['run'] for s in workflow['jobs']['select']['steps'] if s.get('id') == 'select')
+        values = {'github.event_name': 'pull_request', 'github.event.pull_request.base.sha || github.event.before': self.revision}
+        select = re.sub(r'\$\{\{\s*(.*?)\s*\}\}', lambda m: values[m[1]], select)
+        self.write('env', '')
+        self.run_cmd('bash', '-euo', 'pipefail', '-c', select, env=dict(os.environ, GITHUB_OUTPUT=str(self.repo / 'env')))
+        self.assertEqual((self.repo / 'env').read_text(), 'tasks=tasks/angular-task\n')
 
     def test_missing_provenance_rebuilds(self):
         self.assertEqual(self.decisions('migration', ''), ('rebuild', 'rebuild'))
@@ -210,6 +237,38 @@ class ImageStacks(unittest.TestCase):
         self.assertEqual(modern.read_text(), 'ARG BASE_IMAGE=' + AGENTS + '\n')
         migration = self.repo / 'tasks/flow-polymer-to-lit/environment/Dockerfile'
         self.assertIn('migration-agents:ci', migration.read_text())
+        angular = self.repo / 'tasks/angular-task/environment/Dockerfile'
+        self.assertEqual(angular.read_text(), 'ARG BASE_IMAGE=' + AGENTS + '\n')
+
+    def test_controls_prepare_names_the_angular_stack(self):
+        workflow = yaml.safe_load((ROOT / '.github/workflows/control-stack.yml').read_text())
+        steps = workflow['jobs']['prepare']['steps'] + workflow['jobs']['controls']['steps']
+        prepare = next(s['run'] for s in steps if s.get('name') == 'Prepare images for selected stacks')
+        pin = next(s['run'] for s in steps if 'pin_task_images' in s.get('run', ''))
+        prepare = re.sub(r'\$\{\{\s*(.*?)\s*\}\}', lambda m: {'github.event_name': 'pull_request'}[m[1]], prepare)
+        self.write('calls', '')
+        self.write('env', '')
+        self.write('outputs', '')
+        mock = """docker() {
+  echo "$*" >> "$PWD/calls"
+  if [ "$1 $2 $3" = 'buildx imagetools inspect' ]; then
+    printf '{"config":{"Labels":{"org.opencontainers.image.revision":"%s"}}}\\n' "$REVISION"
+  fi
+}
+"""
+        env = dict(os.environ, REVISION=self.revision, STACK='angular', GITHUB_ENV=str(self.repo / 'env'),
+                   GITHUB_OUTPUT=str(self.repo / 'outputs'))
+        self.run_cmd('bash', '-euo', 'pipefail', '-c', mock + 'export -f docker\n' + prepare, env=env)
+        published = dict(line.split('=', 1) for line in (self.repo / 'env').read_text().splitlines())
+        self.assertEqual(set(published), {'ANGULAR_BASE_REF', 'ANGULAR_AGENTS_REF'})
+        outputs = dict(line.split('=', 1) for line in (self.repo / 'outputs').read_text().splitlines())
+        self.assertEqual(outputs['dockerfile'], 'base/angular.Dockerfile')
+        published.update(ANGULAR_BASE_REF='angular-base:ci', ANGULAR_AGENTS_REF='angular-agents:ci')
+        self.run_cmd('bash', '-euo', 'pipefail', '-c', pin, env=dict(os.environ, **published))
+        self.assertIn('angular-agents:ci', (self.repo / 'tasks/angular-task/environment/Dockerfile').read_text())
+        self.assertIn('angular-base:ci', (self.repo / 'tasks/angular-task/tests/Dockerfile').read_text())
+        self.assertEqual((self.repo / 'tasks/flow-polymer-to-lit/environment/Dockerfile').read_text(),
+                         'ARG BASE_IMAGE=' + AGENTS + '\n')
 
     def test_controls_matrix_groups_selected_tasks_and_skips_deleted_tasks(self):
         workflow = yaml.safe_load((ROOT / '.github/workflows/controls.yml').read_text())
@@ -222,7 +281,11 @@ class ImageStacks(unittest.TestCase):
         self.write('tasks/second-modern/task.toml', 'image_stack = "modern"\n')
         second = dict(stack='modern', tasks='tasks/second-modern', phase='all', shard=0, shards=1,
                       label='second-modern')
+        angular = [dict(stack='angular', tasks='tasks/angular-task', phase='all', shard=0, shards=1,
+                        label='angular-task')]
         cases = [('', []), ('tasks/deleted', []),
+                 ('tasks/angular-task', angular),
+                 ('tasks/modern-task tasks/flow-polymer-to-lit tasks/angular-task', modern + migration + angular),
                  ('tasks/modern-task tasks/second-modern', modern + [second]),
                  ('tasks/modern-task tasks/second-modern tasks/flow-polymer-to-lit', modern + [second] + migration),
                  ('tasks/second-modern', [dict(second)]),
@@ -237,7 +300,7 @@ class ImageStacks(unittest.TestCase):
                 outputs = dict(line.split('=', 1) for line in (self.repo / 'outputs').read_text().splitlines())
                 actual = json.loads(outputs['matrix'])
                 self.assertEqual(actual, {'include': expected})
-                for stack in ['modern', 'migration']:
+                for stack in ['modern', 'migration', 'angular']:
                     self.assertEqual(json.loads(outputs[stack]),
                                      {'include': [r for r in expected if r['stack'] == stack]})
 
@@ -345,11 +408,12 @@ class ImageStacks(unittest.TestCase):
                  ('success', '{"include":[{}]}', 'cancelled', False),
                  ('success', '{"include":[{}]}', 'skipped', False)]
         for selection, matrix, controls, passes in cases:
-            for stack in ['MODERN', 'MIGRATION']:
+            for stack in ['MODERN', 'MIGRATION', 'ANGULAR']:
                 with self.subTest(selection=selection, matrix=matrix, controls=controls, stack=stack):
                     env = dict(os.environ, SELECTION=selection,
                                MODERN_MATRIX='{"include":[{}]}', MODERN_RESULT='success',
-                               MIGRATION_MATRIX='{"include":[{}]}', MIGRATION_RESULT='success')
+                               MIGRATION_MATRIX='{"include":[{}]}', MIGRATION_RESULT='success',
+                               ANGULAR_MATRIX='{"include":[{}]}', ANGULAR_RESULT='success')
                     env[stack + '_MATRIX'] = matrix
                     env[stack + '_RESULT'] = controls
                     result = subprocess.run(['bash', '-euo', 'pipefail', '-c', gate], env=env)
@@ -388,7 +452,7 @@ class ImageStacks(unittest.TestCase):
   esac
 }
 """
-        for stack, prefix in [('modern', ''), ('migration', 'MIGRATION_')]:
+        for stack, prefix in [('modern', ''), ('migration', 'MIGRATION_'), ('angular', 'ANGULAR_')]:
             with self.subTest(stack=stack):
                 self.write('env', '')
                 self.write('tags', '')
@@ -408,13 +472,17 @@ class ImageStacks(unittest.TestCase):
         workflow = yaml.safe_load((ROOT / '.github/workflows/base-image.yml').read_text())
         build = next(s['run'] for s in workflow['jobs']['build']['steps'] if s.get('name', '').startswith('Build and push'))
         publish = next(s['run'] for s in workflow['jobs']['publish']['steps'] if s.get('name') == 'Assemble the manifest lists')
-        for changed in [set(), {'migration_base', 'migration_agents'}, {'base', 'agents'}, {'agents', 'migration_agents'}]:
+        for changed in [set(), {'migration_base', 'migration_agents'}, {'base', 'agents'},
+                        {'agents', 'migration_agents', 'angular_agents'}, {'angular_base', 'angular_agents'}]:
             with self.subTest(changed=changed):
                 shutil.rmtree(self.repo / 'digests', ignore_errors=True)
                 self.write('calls', '')
                 self.write('env', '')
-                refs = {'reuse': BASE, 'agents_reuse': AGENTS, 'migration_reuse': BASE, 'migration_agents_reuse': AGENTS}
-                keys = {'base': 'reuse', 'agents': 'agents_reuse', 'migration_base': 'migration_reuse', 'migration_agents': 'migration_agents_reuse'}
+                refs = {'reuse': BASE, 'agents_reuse': AGENTS, 'migration_reuse': BASE, 'migration_agents_reuse': AGENTS,
+                        'angular_reuse': BASE, 'angular_agents_reuse': AGENTS}
+                keys = {'base': 'reuse', 'agents': 'agents_reuse', 'migration_base': 'migration_reuse',
+                        'migration_agents': 'migration_agents_reuse', 'angular_base': 'angular_reuse',
+                        'angular_agents': 'angular_agents_reuse'}
                 for name in changed:
                     refs[keys[name]] = ''
                 values = {f'needs.plan.outputs.{k}': v for k, v in refs.items()}
@@ -437,6 +505,7 @@ class ImageStacks(unittest.TestCase):
                     shutil.copyfile(p, p.with_name(p.name.replace('amd64', 'arm64')))
                 self.write('base/stack-version.txt', '25\n')
                 self.write('base/migration-stack-version.txt', '24\n')
+                self.write('base/angular-stack-version.txt', '22\n')
                 self.run_cmd('bash', '-euo', 'pipefail', '-c', mock + expand(publish), env=env)
                 calls = (self.repo / 'calls').read_text()
                 self.assertEqual(calls.count('imagetools create'), len(changed))

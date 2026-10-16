@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_ViewVeterinarians" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_ViewVeterinarians">
+    <bpmn:participant id="Participant_PetClinic" name="Spring PetClinic" processRef="BP-001" />
+  </bpmn:collaboration>
+  <bpmn:process id="BP-001" name="View Veterinarians" isExecutable="false">
+    <bpmn:documentation>Goal: A member of the public knows which veterinarian treats what, without occupying the front desk.
+Trigger: A visitor looks for a veterinarian.
+Requirements: FR-001, FR-002, FR-003
+Status: Draft</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_ViewVeterinarians">
+      <bpmn:lane id="Lane_Visitor" name="Visitor">
+        <bpmn:flowNodeRef>StartEvent_VetWanted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_ViewWelcomePage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_ViewVeterinarians</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_VetFound</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_VetWanted" name="Visitor looks for a veterinarian" />
+    <bpmn:userTask id="Activity_ViewWelcomePage" name="UC-001 View Welcome Page" />
+    <bpmn:userTask id="Activity_ViewVeterinarians" name="UC-002 View Veterinarians" />
+    <bpmn:endEvent id="EndEvent_VetFound" name="Specialties known" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_VetWanted" targetRef="Activity_ViewWelcomePage" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Activity_ViewWelcomePage" targetRef="Activity_ViewVeterinarians" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Activity_ViewVeterinarians" targetRef="EndEvent_VetFound" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_ViewVeterinarians">
+      <bpmndi:BPMNShape id="Participant_PetClinic_di" bpmnElement="Participant_PetClinic" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="678" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Visitor_di" bpmnElement="Lane_Visitor" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="648" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_VetWanted_di" bpmnElement="StartEvent_VetWanted">
+        <dc:Bounds x="302" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_ViewWelcomePage_di" bpmnElement="Activity_ViewWelcomePage">
+        <dc:Bounds x="420" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_ViewVeterinarians_di" bpmnElement="Activity_ViewVeterinarians">
+        <dc:Bounds x="570" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_VetFound_di" bpmnElement="EndEvent_VetFound">
+        <dc:Bounds x="752" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="338" y="140" />
+        <di:waypoint x="420" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="520" y="140" />
+        <di:waypoint x="570" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="670" y="140" />
+        <di:waypoint x="752" y="140" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

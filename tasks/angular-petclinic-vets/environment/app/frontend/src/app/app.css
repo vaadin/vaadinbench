@@ -1,0 +1,29 @@
+.shell {
+  height: 100%;
+}
+
+.drawer {
+  width: 220px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  gap: 12px;
+  flex: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

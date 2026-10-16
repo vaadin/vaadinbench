@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_UpdatePet" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_UpdatePet">
+    <bpmn:participant id="Participant_PetClinic" name="Spring PetClinic" processRef="BP-006" />
+  </bpmn:collaboration>
+  <bpmn:process id="BP-006" name="Update Pet" isExecutable="false">
+    <bpmn:documentation>Goal: The clinic's details of an animal are correct again.
+Trigger: An owner reports changed details of one of their animals.
+Requirements: FR-007, FR-008, FR-010, FR-011, FR-012, FR-017
+Status: Draft</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_UpdatePet">
+      <bpmn:lane id="Lane_ClinicUser" name="Clinic User">
+        <bpmn:flowNodeRef>StartEvent_PetDetailsChanged</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_FindOwners</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_OwnerOnRecord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_ViewOwnerDetails</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_PetOnRecord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_UpdatePet</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_PetDetailsUpdated</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_PetNotOnRecord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_OwnerNotOnRecord</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_PetDetailsChanged" name="Owner reports changed pet details" />
+    <bpmn:userTask id="Activity_FindOwners" name="UC-004 Find Owners by Last Name" />
+    <bpmn:exclusiveGateway id="Gateway_OwnerOnRecord" name="Owner on record?" />
+    <bpmn:userTask id="Activity_ViewOwnerDetails" name="UC-005 View Owner Details" />
+    <bpmn:exclusiveGateway id="Gateway_PetOnRecord" name="Pet on record?" />
+    <bpmn:userTask id="Activity_UpdatePet" name="UC-008 Update Pet" />
+    <bpmn:endEvent id="EndEvent_PetDetailsUpdated" name="Pet details updated" />
+    <bpmn:endEvent id="EndEvent_PetNotOnRecord" name="Pet not on record" />
+    <bpmn:endEvent id="EndEvent_OwnerNotOnRecord" name="Owner not on record" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_PetDetailsChanged" targetRef="Activity_FindOwners" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Activity_FindOwners" targetRef="Gateway_OwnerOnRecord" />
+    <bpmn:sequenceFlow id="Flow_OwnerOnRecord_Yes" name="yes" sourceRef="Gateway_OwnerOnRecord" targetRef="Activity_ViewOwnerDetails" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Activity_ViewOwnerDetails" targetRef="Gateway_PetOnRecord" />
+    <bpmn:sequenceFlow id="Flow_PetOnRecord_Yes" name="yes" sourceRef="Gateway_PetOnRecord" targetRef="Activity_UpdatePet" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Activity_UpdatePet" targetRef="EndEvent_PetDetailsUpdated" />
+    <bpmn:sequenceFlow id="Flow_PetOnRecord_No" name="no" sourceRef="Gateway_PetOnRecord" targetRef="EndEvent_PetNotOnRecord" />
+    <bpmn:sequenceFlow id="Flow_OwnerOnRecord_No" name="no" sourceRef="Gateway_OwnerOnRecord" targetRef="EndEvent_OwnerNotOnRecord" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_UpdatePet">
+      <bpmndi:BPMNShape id="Participant_PetClinic_di" bpmnElement="Participant_PetClinic" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1128" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_ClinicUser_di" bpmnElement="Lane_ClinicUser" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="1098" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_PetDetailsChanged_di" bpmnElement="StartEvent_PetDetailsChanged">
+        <dc:Bounds x="302" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_FindOwners_di" bpmnElement="Activity_FindOwners">
+        <dc:Bounds x="420" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_OwnerOnRecord_di" bpmnElement="Gateway_OwnerOnRecord" isMarkerVisible="true">
+        <dc:Bounds x="595" y="115" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_ViewOwnerDetails_di" bpmnElement="Activity_ViewOwnerDetails">
+        <dc:Bounds x="720" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PetOnRecord_di" bpmnElement="Gateway_PetOnRecord" isMarkerVisible="true">
+        <dc:Bounds x="895" y="115" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_UpdatePet_di" bpmnElement="Activity_UpdatePet">
+        <dc:Bounds x="1020" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_PetDetailsUpdated_di" bpmnElement="EndEvent_PetDetailsUpdated">
+        <dc:Bounds x="1202" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_PetNotOnRecord_di" bpmnElement="EndEvent_PetNotOnRecord">
+        <dc:Bounds x="1052" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OwnerNotOnRecord_di" bpmnElement="EndEvent_OwnerNotOnRecord">
+        <dc:Bounds x="752" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="338" y="140" />
+        <di:waypoint x="420" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="520" y="140" />
+        <di:waypoint x="595" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_OwnerOnRecord_Yes_di" bpmnElement="Flow_OwnerOnRecord_Yes">
+        <di:waypoint x="645" y="140" />
+        <di:waypoint x="720" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="820" y="140" />
+        <di:waypoint x="895" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PetOnRecord_Yes_di" bpmnElement="Flow_PetOnRecord_Yes">
+        <di:waypoint x="945" y="140" />
+        <di:waypoint x="1020" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="1120" y="140" />
+        <di:waypoint x="1202" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PetOnRecord_No_di" bpmnElement="Flow_PetOnRecord_No">
+        <di:waypoint x="920" y="165" />
+        <di:waypoint x="920" y="260" />
+        <di:waypoint x="1052" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_OwnerOnRecord_No_di" bpmnElement="Flow_OwnerOnRecord_No">
+        <di:waypoint x="620" y="165" />
+        <di:waypoint x="620" y="260" />
+        <di:waypoint x="752" y="260" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

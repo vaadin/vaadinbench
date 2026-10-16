@@ -24,7 +24,7 @@ ARG BASE_SHA=0f3b666824693f2885f630476ac3754db12a3442
 # is standing in makes git fail with "Unable to read current working directory".
 WORKDIR /
 RUN rm -rf /app \
-    && git clone https://github.com/AI-Unified-Process/petclinic /app
+    && git clone https://github.com/vesanieminen/petclinic /app
 
 WORKDIR /app
 

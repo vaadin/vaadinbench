@@ -43,8 +43,9 @@ jobs:
           source .github/scripts/task-images.sh
           stack="$STACK"
           prefix=""; dockerfile=base/Dockerfile; local_prefix=vaadinbench
-          if [ "$stack" = migration ]; then
-            prefix=MIGRATION_; dockerfile=base/migration.Dockerfile; local_prefix=vaadinbench-migration
+          if [ "$stack" != modern ]; then
+            prefix=$(echo "${stack}_" | tr '[:lower:]' '[:upper:]')
+            dockerfile=base/$stack.Dockerfile; local_prefix=vaadinbench-$stack
           fi
           pinned=$(task_image_reference "$stack" tests)
           revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
@@ -162,7 +163,7 @@ jobs:
           docker load -i /tmp/stack-images/images.tar.gz
           rm /tmp/stack-images/images.tar.gz
           prefix=""
-          if [ "$STACK" = migration ]; then prefix=MIGRATION_; fi
+          if [ "$STACK" != modern ]; then prefix=$(echo "${STACK}_" | tr '[:lower:]' '[:upper:]'); fi
           docker image inspect "vaadinbench-$STACK-base:ci" "vaadinbench-$STACK-agents:ci" --format '{{.Id}}'
           echo "${prefix}BASE_REF=vaadinbench-$STACK-base:ci" >> "$GITHUB_ENV"
           echo "${prefix}AGENTS_REF=vaadinbench-$STACK-agents:ci" >> "$GITHUB_ENV"
@@ -183,7 +184,8 @@ jobs:
         run: |
           source .github/scripts/task-images.sh
           pin_task_images "${BASE_REF:-}" "${AGENTS_REF:-}" \
-            "${MIGRATION_BASE_REF:-}" "${MIGRATION_AGENTS_REF:-}"
+            "${MIGRATION_BASE_REF:-}" "${MIGRATION_AGENTS_REF:-}" \
+            "${ANGULAR_BASE_REF:-}" "${ANGULAR_AGENTS_REF:-}"
           grep -H '^ARG BASE_IMAGE=' \
             tasks/*/environment/Dockerfile tasks/*/tests/Dockerfile
 

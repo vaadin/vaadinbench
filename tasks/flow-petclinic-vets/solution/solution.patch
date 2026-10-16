@@ -1,0 +1,326 @@
+diff --git a/docs/use_cases/UC-002-view-veterinarians.md b/docs/use_cases/UC-002-view-veterinarians.md
+index 6a138f2..0940bc5 100644
+--- a/docs/use_cases/UC-002-view-veterinarians.md
++++ b/docs/use_cases/UC-002-view-veterinarians.md
+@@ -6,7 +6,7 @@
+ **Use Case Name:** View Veterinarians   
+ **Primary Actor:** Visitor   
+ **Goal:** Browse the list of veterinarians employed at the clinic along with their specialties.   
+-**Status:** Approved   
++**Status:** Done   
+ **Requirements:** [FR-003, NFR-001, NFR-002, NFR-003, C-010, C-011](../requirements.md)
+ 
+ ## Preconditions
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/core/ui/MainLayout.java b/src/main/java/ai/unifiedprocess/petclinic/core/ui/MainLayout.java
+index 6c19f04..98bcf46 100644
+--- a/src/main/java/ai/unifiedprocess/petclinic/core/ui/MainLayout.java
++++ b/src/main/java/ai/unifiedprocess/petclinic/core/ui/MainLayout.java
+@@ -1,5 +1,6 @@
+ package ai.unifiedprocess.petclinic.core.ui;
+ 
++import ai.unifiedprocess.petclinic.vet.ui.VetsView;
+ import ai.unifiedprocess.petclinic.welcome.ui.WelcomeView;
+ import com.vaadin.flow.component.applayout.AppLayout;
+ import com.vaadin.flow.component.applayout.DrawerToggle;
+@@ -38,7 +39,7 @@ public class MainLayout extends AppLayout {
+ 
+         SideNavItem homeLink = new SideNavItem("Home", WelcomeView.class);
+         SideNavItem findOwnersLink = new SideNavItem("Find Owners", "owners/find");
+-        SideNavItem vetsLink = new SideNavItem("Veterinarians", "vets");
++        SideNavItem vetsLink = new SideNavItem("Veterinarians", VetsView.class);
+         SideNavItem errorLink = new SideNavItem("Error", CrashView.class);
+ 
+         SideNav sideNav = new SideNav();
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java
+new file mode 100644
+index 0000000..581af1c
+--- /dev/null
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/Vet.java
+@@ -0,0 +1,21 @@
++package ai.unifiedprocess.petclinic.vet.domain;
++
++import java.io.Serializable;
++import java.util.List;
++
++/**
++ * A veterinarian together with the specialties they hold.
++ *
++ * <p>{@code specialties} is sorted alphabetically — see UC-002 BR-002.
++ */
++public record Vet(Integer id, String firstName, String lastName, List<String> specialties) implements Serializable {
++
++    /**
++     * Human-readable label for the specialties column. See UC-002 main success
++     * scenario step 3: a comma-separated list, or {@code "none"} if the vet
++     * holds no specialties.
++     */
++    public String specialtiesLabel() {
++        return specialties.isEmpty() ? "none" : String.join(", ", specialties);
++    }
++}
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java
+new file mode 100644
+index 0000000..8b1dde0
+--- /dev/null
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/domain/VetRepository.java
+@@ -0,0 +1,55 @@
++package ai.unifiedprocess.petclinic.vet.domain;
++
++import org.jooq.DSLContext;
++import org.jooq.Field;
++import org.springframework.stereotype.Repository;
++import org.springframework.transaction.annotation.Transactional;
++
++import java.util.List;
++import java.util.stream.Stream;
++
++import static ai.unifiedprocess.demo.petclinic.database.Tables.*;
++import static org.jooq.Records.mapping;
++import static org.jooq.impl.DSL.multiset;
++import static org.jooq.impl.DSL.select;
++
++/**
++ * jOOQ-backed persistence for {@link Vet}. Feeds the Veterinarians grid (UC-002).
++ */
++@Repository
++@Transactional(readOnly = true)
++public class VetRepository {
++
++    private final DSLContext dsl;
++
++    public VetRepository(DSLContext dsl) {
++        this.dsl = dsl;
++    }
++
++    /**
++     * Fetch a page of vets in stable order (last name, first name, id), each
++     * with their specialties pre-loaded alphabetically (BR-002).
++     */
++    public Stream<Vet> findPage(int offset, int limit) {
++        Field<List<String>> specialties =
++                multiset(
++                        select(SPECIALTIES.NAME)
++                                .from(VET_SPECIALTIES)
++                                .join(SPECIALTIES).on(SPECIALTIES.ID.eq(VET_SPECIALTIES.SPECIALTY_ID))
++                                .where(VET_SPECIALTIES.VET_ID.eq(VETS.ID))
++                                .orderBy(SPECIALTIES.NAME.asc()))
++                        .convertFrom(r -> r.getValues(SPECIALTIES.NAME));
++
++        return dsl.select(VETS.ID, VETS.FIRST_NAME, VETS.LAST_NAME, specialties)
++                .from(VETS)
++                .orderBy(VETS.LAST_NAME.asc(), VETS.FIRST_NAME.asc(), VETS.ID.asc())
++                .offset(offset)
++                .limit(limit)
++                .fetch(mapping(Vet::new))
++                .stream();
++    }
++
++    public int count() {
++        return dsl.fetchCount(VETS);
++    }
++}
+diff --git a/src/main/java/ai/unifiedprocess/petclinic/vet/ui/VetsView.java b/src/main/java/ai/unifiedprocess/petclinic/vet/ui/VetsView.java
+new file mode 100644
+index 0000000..9406c41
+--- /dev/null
++++ b/src/main/java/ai/unifiedprocess/petclinic/vet/ui/VetsView.java
+@@ -0,0 +1,50 @@
++package ai.unifiedprocess.petclinic.vet.ui;
++
++import ai.unifiedprocess.petclinic.core.ui.MainLayout;
++import ai.unifiedprocess.petclinic.vet.domain.Vet;
++import ai.unifiedprocess.petclinic.vet.domain.VetRepository;
++import com.vaadin.flow.component.grid.Grid;
++import com.vaadin.flow.component.html.H2;
++import com.vaadin.flow.component.orderedlayout.VerticalLayout;
++import com.vaadin.flow.data.provider.Query;
++import com.vaadin.flow.router.PageTitle;
++import com.vaadin.flow.router.Route;
++import com.vaadin.flow.theme.lumo.LumoUtility;
++
++import java.util.stream.Stream;
++
++/**
++ * UC-002: View Veterinarians.
++ *
++ * <p>Lazy-loaded list of vets with their specialties. The grid uses a
++ * callback data provider (BR-001: infinite scrolling, no fixed page size).
++ */
++@Route(value = "vets", layout = MainLayout.class)
++@PageTitle("Veterinarians")
++public class VetsView extends VerticalLayout {
++
++    private final transient VetRepository vetRepository;
++
++    public VetsView(VetRepository vetRepository) {
++        this.vetRepository = vetRepository;
++        setSizeFull();
++
++        H2 heading = new H2("Veterinarians");
++        heading.addClassNames(LumoUtility.Margin.NONE);
++
++        Grid<Vet> vetsGrid = new Grid<>(Vet.class, false);
++        vetsGrid.addColumn(Vet::firstName).setHeader("First Name").setAutoWidth(true);
++        vetsGrid.addColumn(Vet::lastName).setHeader("Last Name").setAutoWidth(true);
++        vetsGrid.addColumn(Vet::specialtiesLabel).setHeader("Specialties").setAutoWidth(true);
++        vetsGrid.setSizeFull();
++        vetsGrid.setItems(this::page);
++
++        add(heading, vetsGrid);
++        setFlexGrow(1, vetsGrid);
++    }
++
++    /** One scroll step of the grid; reads the field, not the constructor parameter. */
++    private Stream<Vet> page(Query<Vet, Void> query) {
++        return vetRepository.findPage(query.getOffset(), query.getLimit());
++    }
++}
+diff --git a/src/test/java/ai/unifiedprocess/petclinic/vet/ui/UC002ViewVeterinariansTest.java b/src/test/java/ai/unifiedprocess/petclinic/vet/ui/UC002ViewVeterinariansTest.java
+new file mode 100644
+index 0000000..d868eef
+--- /dev/null
++++ b/src/test/java/ai/unifiedprocess/petclinic/vet/ui/UC002ViewVeterinariansTest.java
+@@ -0,0 +1,143 @@
++package ai.unifiedprocess.petclinic.vet.ui;
++
++import ai.unifiedprocess.petclinic.PetClinicTestBase;
++import ai.unifiedprocess.petclinic.UseCase;
++import ai.unifiedprocess.petclinic.vet.domain.Vet;
++import com.vaadin.flow.component.grid.Grid;
++import org.jooq.DSLContext;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++
++import java.util.List;
++
++import static ai.unifiedprocess.demo.petclinic.database.Tables.VETS;
++import static ai.unifiedprocess.demo.petclinic.database.Tables.VET_SPECIALTIES;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++/**
++ * UC-002: View Veterinarians.
++ *
++ * <p>Uses the V2 seed data (vets + specialties from the main migrations;
++ * no V1000 fixtures are needed here). Grid rows are pulled via
++ * {@code test(grid).getRow(i)} so the test never touches the repository
++ * directly — the grid's own lazy loader executes the real query.
++ */
++class UC002ViewVeterinariansTest extends PetClinicTestBase {
++
++    @Autowired
++    private DSLContext dsl;
++
++    @Test
++    @UseCase(id = "UC-002", businessRules = "BR-003")
++    void vetsViewIsReachableWithoutAuthentication() {
++        assertDoesNotThrow(() -> navigate(VetsView.class),
++                "Expected /vets to render without authentication");
++    }
++
++    @Test
++    @UseCase(id = "UC-002")
++    void vetsGridContainsSeededVets() {
++        navigate(VetsView.class);
++        Grid<Vet> grid = grid();
++        int total = test(grid).size();
++        assertTrue(total > 0, "Expected the seeded vets to appear in the grid");
++
++        Vet first = test(grid).getRow(0);
++        assertEquals("James", first.firstName(), "Expected first vet (by last name) to be James Carter");
++        assertEquals("Carter", first.lastName());
++    }
++
++    @Test
++    @UseCase(id = "UC-002", businessRules = "BR-002")
++    void specialtiesAreListedAlphabeticallyWithinEachVet() {
++        navigate(VetsView.class);
++
++        // Dr. Douglas holds both 'surgery' and 'dentistry' per V2 seed data —
++        // BR-002 requires the view to display them alphabetically.
++        Vet douglas = findVetByLastName("Douglas");
++        assertEquals(List.of("dentistry", "surgery"), douglas.specialties());
++    }
++
++    @Test
++    @UseCase(id = "UC-002")
++    void vetWithoutSpecialtiesIsRenderedAsNone() {
++        navigate(VetsView.class);
++
++        // Dr. Carter has no specialties in the V2 seed data.
++        Vet carter = findVetByLastName("Carter");
++        assertTrue(carter.specialties().isEmpty());
++        assertEquals("none", carter.specialtiesLabel());
++    }
++
++    @Test
++    @UseCase(id = "UC-002")
++    void gridColumnsMatchSpecification() {
++        navigate(VetsView.class);
++        List<String> headers = grid().getColumns().stream()
++                .map(Grid.Column::getHeaderText)
++                .toList();
++        assertEquals(List.of("First Name", "Last Name", "Specialties"), headers);
++    }
++
++    @Test
++    @UseCase(id = "UC-002", businessRules = "BR-001")
++    void vetsGridFetchesRowsLazily() {
++        navigate(VetsView.class);
++        Grid<Vet> grid = grid();
++
++        // BR-001: rows come from the backend per requested range. An in-memory
++        // provider would mean the whole list was loaded up front — precisely
++        // what "no fixed page size, no page controls" rules out.
++        assertFalse(grid.getDataProvider().isInMemory(),
++                "BR-001: expected a lazy backend data provider, not an in-memory one");
++
++        // Main scenario step 4: materialising the final row is the browserless
++        // equivalent of scrolling to the end — the next chunk is fetched and
++        // appended on demand. Vets are ordered by last name.
++        assertEquals(6, test(grid).size());
++        assertEquals("Carter", test(grid).getRow(0).lastName());
++        assertEquals("Stevens", test(grid).getRow(5).lastName(),
++                "Expected the last vet to be reachable through a later fetch");
++    }
++
++    @Test
++    @UseCase(id = "UC-002", scenario = "A1: No Veterinarians Registered")
++    void gridRendersWithoutRowsWhenNoVetsAreRegistered() {
++        // A1 is the *absence* of data, which V2 seed data cannot express —
++        // seeding can only add rows. Emptying the tables here is safe because
++        // PetClinicTestBase wraps every test in a transaction that is rolled
++        // back, so no other test observes it. The view still runs the real
++        // VetRepository query, now against an empty table.
++        dsl.deleteFrom(VET_SPECIALTIES).execute();
++        dsl.deleteFrom(VETS).execute();
++
++        navigate(VetsView.class);
++
++        assertEquals(0, test(grid()).size(),
++                "Expected an empty grid when no veterinarians are registered");
++        // A1 must render the grid with no rows — not degrade into an error page.
++        assertDoesNotThrow(() -> find(VetsView.class).single(),
++                "Expected VetsView to still render when there are no vets");
++        assertEquals(List.of("First Name", "Last Name", "Specialties"),
++                grid().getColumns().stream().map(Grid.Column::getHeaderText).toList(),
++                "Expected the column headers to survive the empty result set");
++    }
++
++    @SuppressWarnings("unchecked")
++    private Grid<Vet> grid() {
++        return (Grid<Vet>) find(Grid.class).single();
++    }
++
++    private Vet findVetByLastName(String lastName) {
++        Grid<Vet> grid = grid();
++        int size = test(grid).size();
++        for (int i = 0; i < size; i++) {
++            Vet vet = test(grid).getRow(i);
++            if (lastName.equals(vet.lastName())) {
++                return vet;
++            }
++        }
++        throw new AssertionError("Vet with last name '" + lastName + "' not found in grid");
++    }
++}

@@ -1,0 +1,32 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav #drawer mode="side" opened class="drawer">
+    <nav [attr.aria-label]="navLabel">
+      <mat-nav-list>
+        @for (item of menu; track item.path) {
+          <a mat-list-item
+             [routerLink]="item.path"
+             routerLinkActive
+             #active="routerLinkActive"
+             [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+             [activated]="active.isActive">{{ item.label }}</a>
+        }
+      </mat-nav-list>
+    </nav>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    <mat-toolbar class="header">
+      <button mat-icon-button type="button" aria-label="Toggle menu" (click)="drawer.toggle()">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+          <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+        </svg>
+      </button>
+      <img class="logo" src="images/petclinic-logo.svg" alt="PetClinic logo" height="40">
+      <h1 class="title">PetClinic</h1>
+    </mat-toolbar>
+
+    <main class="page">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

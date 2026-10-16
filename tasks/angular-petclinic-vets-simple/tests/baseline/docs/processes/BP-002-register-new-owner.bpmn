@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_RegisterNewOwner" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI">
+  <bpmn:collaboration id="Collaboration_RegisterNewOwner">
+    <bpmn:participant id="Participant_PetClinic" name="Spring PetClinic" processRef="BP-002" />
+  </bpmn:collaboration>
+  <bpmn:process id="BP-002" name="Register New Owner" isExecutable="false">
+    <bpmn:documentation>Goal: A new client is on record with contact details the clinic can reach them by.
+Trigger: A new client wants to register with the clinic.
+Requirements: FR-004, FR-005, FR-006, FR-007, FR-010
+Status: Draft</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_RegisterNewOwner">
+      <bpmn:lane id="Lane_ClinicUser" name="Clinic User">
+        <bpmn:flowNodeRef>StartEvent_NewClient</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_FindOwners</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_OwnerAlreadyOnRecord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_RegisterNewOwner</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_OwnerRegistered</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_OwnerAlreadyOnRecord</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_NewClient" name="New client wants to register" />
+    <bpmn:userTask id="Activity_FindOwners" name="UC-004 Find Owners by Last Name" />
+    <bpmn:exclusiveGateway id="Gateway_OwnerAlreadyOnRecord" name="Owner already on record?" />
+    <bpmn:userTask id="Activity_RegisterNewOwner" name="UC-003 Register New Owner" />
+    <bpmn:endEvent id="EndEvent_OwnerRegistered" name="Owner registered" />
+    <bpmn:endEvent id="EndEvent_OwnerAlreadyOnRecord" name="Owner already on record" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_NewClient" targetRef="Activity_FindOwners" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Activity_FindOwners" targetRef="Gateway_OwnerAlreadyOnRecord" />
+    <bpmn:sequenceFlow id="Flow_OwnerAlreadyOnRecord_No" name="no" sourceRef="Gateway_OwnerAlreadyOnRecord" targetRef="Activity_RegisterNewOwner" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Activity_RegisterNewOwner" targetRef="EndEvent_OwnerRegistered" />
+    <bpmn:sequenceFlow id="Flow_OwnerAlreadyOnRecord_Yes" name="yes" sourceRef="Gateway_OwnerAlreadyOnRecord" targetRef="EndEvent_OwnerAlreadyOnRecord" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_RegisterNewOwner">
+      <bpmndi:BPMNShape id="Participant_PetClinic_di" bpmnElement="Participant_PetClinic" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="828" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_ClinicUser_di" bpmnElement="Lane_ClinicUser" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="798" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_NewClient_di" bpmnElement="StartEvent_NewClient">
+        <dc:Bounds x="302" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_FindOwners_di" bpmnElement="Activity_FindOwners">
+        <dc:Bounds x="420" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_OwnerAlreadyOnRecord_di" bpmnElement="Gateway_OwnerAlreadyOnRecord" isMarkerVisible="true">
+        <dc:Bounds x="595" y="115" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_RegisterNewOwner_di" bpmnElement="Activity_RegisterNewOwner">
+        <dc:Bounds x="720" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OwnerRegistered_di" bpmnElement="EndEvent_OwnerRegistered">
+        <dc:Bounds x="902" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_OwnerAlreadyOnRecord_di" bpmnElement="EndEvent_OwnerAlreadyOnRecord">
+        <dc:Bounds x="752" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="338" y="140" />
+        <di:waypoint x="420" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="520" y="140" />
+        <di:waypoint x="595" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_OwnerAlreadyOnRecord_No_di" bpmnElement="Flow_OwnerAlreadyOnRecord_No">
+        <di:waypoint x="645" y="140" />
+        <di:waypoint x="720" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="820" y="140" />
+        <di:waypoint x="902" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_OwnerAlreadyOnRecord_Yes_di" bpmnElement="Flow_OwnerAlreadyOnRecord_Yes">
+        <di:waypoint x="620" y="165" />
+        <di:waypoint x="620" y="260" />
+        <di:waypoint x="752" y="260" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

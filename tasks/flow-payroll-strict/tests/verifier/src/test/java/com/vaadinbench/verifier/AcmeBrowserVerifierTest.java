@@ -29,6 +29,7 @@ class AcmeBrowserVerifierTest {
   static void start() throws Exception {
     Files.createDirectories(OUTPUT);
     playwright = Playwright.create();
+    OrderSelection.registerSelectors(playwright);
     browser = BrowserSession.launch(playwright);
     Files.writeString(
         OUTPUT.resolve("browser.txt"),

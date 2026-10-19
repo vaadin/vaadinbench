@@ -186,6 +186,7 @@ public final class UiCheck {
         Browser launched = null;
         try {
             pw = Playwright.create();
+            OrderSelection.registerSelectors(pw);
             launched = BrowserSession.launch(pw);
             Browser browser = launched;
             browserVersion = browser.version();

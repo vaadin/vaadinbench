@@ -62,3 +62,16 @@ task_image_reference() {
     done
     return 1
 }
+
+# $1 this repository's owner. Prints the GHCR owner whose images the task
+# Dockerfiles name: this repository's own once it has published and pinned them,
+# and otherwise vaadin's — a fork starts on the images vaadin/vaadinbench pins,
+# and its first base-image run builds and pins its own.
+task_image_owner() {
+    local own
+    own=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+    case $(task_image_reference modern tests) in
+        "ghcr.io/$own/"*) echo "$own" ;;
+        *) echo vaadin ;;
+    esac
+}

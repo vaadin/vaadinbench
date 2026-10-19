@@ -112,15 +112,24 @@ jobs:
         id: decide
         run: |
           source .github/scripts/task-images.sh
+          # Only this repository's own images can be reused: on a fork still
+          # pinned to vaadin's, reusing one would publish a digest under this
+          # owner's name that was never pushed there. No revision means rebuild.
+          own=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          revision_of() {
+            case $1 in
+              "ghcr.io/$own/"*) bash .github/scripts/base-image-revision.sh "$1" ;;
+            esac
+          }
           for stack in $VB_STACKS; do
             prefix=""; [ "$stack" = modern ] || prefix=${stack}_
             pinned=$(task_image_reference "$stack" tests)
-            revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
+            revision=$(revision_of "$pinned")
             decision=$(bash .github/scripts/base-image-decision.sh "${{ github.event_name }}" "$revision" "$stack")
             reuse=""; [ "$decision" = rebuild ] || reuse=${decision#reuse }
             echo "${prefix}reuse=$reuse" >>"$GITHUB_OUTPUT"
             pinned=$(task_image_reference "$stack" environment)
-            revision=$(bash .github/scripts/base-image-revision.sh "$pinned")
+            revision=$(revision_of "$pinned")
             agents=$(bash .github/scripts/agents-image-decision.sh "${{ github.event_name }}" "$revision" "$stack" "$decision")
             reuse=""; [ "$agents" = rebuild ] || reuse=${agents#reuse }
             echo "${prefix}agents_reuse=$reuse" >>"$GITHUB_OUTPUT"
@@ -160,14 +169,17 @@ jobs:
 
       # The same check the validate workflow runs on every pull request: the task
       # Dockerfiles are the only functional copies of these references, and
-      # the last step here rewrites them.
+      # the last step here rewrites them. A fork that has not published yet still
+      # names vaadin's images; this run publishes its own and pins them instead.
       - name: Every task builds on the images this workflow publishes
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "BASE=ghcr.io/$owner/vaadinbench-base" >>"$GITHUB_ENV"
           echo "AGENTS=ghcr.io/$owner/vaadinbench-agents" >>"$GITHUB_ENV"
+          source .github/scripts/task-images.sh
+          pinned=$(task_image_owner "$owner")
           bash .github/scripts/base-image-reference.sh \
-            "ghcr.io/$owner/vaadinbench-base" "ghcr.io/$owner/vaadinbench-agents"
+            "ghcr.io/$pinned/vaadinbench-base" "ghcr.io/$pinned/vaadinbench-agents"
 
       - uses: docker/setup-buildx-action@v3
 

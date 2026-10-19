@@ -214,6 +214,8 @@ jobs:
 
       - name: Test the verifier entry points and library
         run: bash base/test-verifier.sh
+      - name: Test base warm-up preparation
+        run: python3 base/test-warmup.py
       - name: Check migration build gate
         run: |
           python3 tasks/flow-polymer-to-lit/tests/build-check/test-controller.py

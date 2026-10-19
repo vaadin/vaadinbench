@@ -1,0 +1,13 @@
+# The angular stack's build context: base/ and the tasks on this stack, nothing
+# else. A task on this stack is named angular-*, which is what admits it here
+# and keeps it out of the root .dockerignore's modern warm-up. BuildKit reads this file instead of the root .dockerignore because it
+# sits beside base/angular.Dockerfile and carries its name.
+*
+!base/
+!tasks/angular-*/
+
+**/target/
+**/node_modules/
+**/dist/
+**/.angular/
+**/.DS_Store

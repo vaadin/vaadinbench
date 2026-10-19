@@ -20,8 +20,6 @@ import jakarta.inject.Inject;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -46,7 +44,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("angular-petclinic-vets (browser)")
 class VetsBrowserVerifierTest {
 
-    private static final List<String> HEADERS = List.of("First Name", "Last Name", "Specialties");
+    private static final List<String> HEADERS = List.of("first name", "last name", "specialties");
 
     private static final int VETS = 1000;
 
@@ -55,9 +53,6 @@ class VetsBrowserVerifierTest {
 
     /** A roundtrip, or the first render bootstrapping the client before it. */
     private static final double INTERACTION_TIMEOUT_MS = 20_000;
-
-    /** How long the page must have no request in flight to count as settled. */
-    private static final long QUIET_MS = 500;
 
     /** Generous: an implementation that appends a chunk per step needs many. */
     private static final int MAX_SCROLL_STEPS = 400;
@@ -75,8 +70,7 @@ class VetsBrowserVerifierTest {
     DataSource dataSource;
 
     private Page page;
-    private final AtomicInteger inFlight = new AtomicInteger();
-    private final AtomicLong lastActivity = new AtomicLong();
+    private ScrollActivity activity;
 
     @BeforeAll
     static void launchBrowser() {
@@ -96,9 +90,7 @@ class VetsBrowserVerifierTest {
     void openPage() {
         page = browser.newPage();
         page.setDefaultTimeout(INTERACTION_TIMEOUT_MS);
-        page.onRequest(request -> activity(+1));
-        page.onRequestFinished(request -> activity(-1));
-        page.onRequestFailed(request -> activity(-1));
+        activity = new ScrollActivity(page);
     }
 
     @AfterEach
@@ -167,11 +159,9 @@ class VetsBrowserVerifierTest {
 
         // A few screens further down: the next chunk, not the rest of the list.
         pointAt(list);
-        page.mouse().wheel(0, 2000);
+        activity.scroll(() -> page.mouse().wheel(0, 2000));
         awaitQuiet();
-        long afterStep = VetFixture.rowsRead(dataSource);
-        assertTrue(afterStep - opened <= STEP_LIMIT, "Scrolling a few screens down read "
-                + (afterStep - opened) + " more vet rows; at most " + STEP_LIMIT + " are allowed");
+        long afterStep = VetFixture.checkStep(dataSource, opened, STEP_LIMIT);
 
         // To the very end, however the list grows on the way there.
         Vet last = many.get(VETS - 1);
@@ -180,8 +170,9 @@ class VetsBrowserVerifierTest {
         for (int step = 0, stalled = 0; step < MAX_SCROLL_STEPS && stalled < STALLED_STEPS
                 && !isVisible(lastRow); step++) {
             pointAt(list);
-            page.mouse().wheel(0, 5000);
+            activity.scroll(() -> page.mouse().wheel(0, 5000));
             awaitQuiet();
+            afterStep = VetFixture.checkStep(dataSource, afterStep, STEP_LIMIT);
             // A list that has stopped growing will not reach the end by being
             // scrolled any further; a few steps with nothing new settle that.
             String now = lastShown(list);
@@ -191,6 +182,8 @@ class VetsBrowserVerifierTest {
         assertTrue(isVisible(lastRow), "Scrolling to the end of the list must reach the last vet, "
                 + last.lastName() + "; scrolling must keep loading until every vet is shown");
         assertRowShows(list, last);
+        awaitQuiet();
+        VetFixture.checkStep(dataSource, afterStep, STEP_LIMIT);
     }
 
     // -------------------------------------------------------------- helpers
@@ -210,7 +203,7 @@ class VetsBrowserVerifierTest {
     }
 
     private static List<String> headers(Locator list) {
-        return list.getByRole(AriaRole.COLUMNHEADER).allInnerTexts().stream().map(String::strip).toList();
+        return list.getByRole(AriaRole.COLUMNHEADER).allInnerTexts().stream().map(VetFixture::header).toList();
     }
 
     /** Every row of the list that has cells, as the cells' texts. */
@@ -285,25 +278,8 @@ class VetsBrowserVerifierTest {
                 page.viewportSize().height - 5)));
     }
 
-    private void activity(int delta) {
-        inFlight.addAndGet(delta);
-        lastActivity.set(System.nanoTime());
-    }
-
     /** No request in flight, and none for a moment: the page has what it asked for. */
     private void awaitQuiet() {
-        long deadline = System.nanoTime() + (long) INTERACTION_TIMEOUT_MS * 1_000_000;
-        while (System.nanoTime() < deadline) {
-            // Playwright delivers request events while the client waits on it.
-            page.waitForTimeout(100);
-            boolean idle = inFlight.get() <= 0
-                    && System.nanoTime() - lastActivity.get() >= QUIET_MS * 1_000_000;
-            if (idle) {
-                return;
-            }
-        }
-        throw new AssertionError("The page was still loading after "
-                + (long) INTERACTION_TIMEOUT_MS / 1000 + " s, having read "
-                + VetFixture.rowsRead(dataSource) + " vet rows from the database");
+        activity.awaitQuiet(INTERACTION_TIMEOUT_MS);
     }
 }

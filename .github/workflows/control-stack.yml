@@ -100,6 +100,15 @@ jobs:
           cache-from: type=gha,scope=controls-${{ inputs.stack }}-agents
           cache-to: type=gha,scope=controls-${{ inputs.stack }}-agents,mode=max,ignore-error=true
 
+      - name: PetClinic SQL and delayed-scroll regressions
+        if: inputs.stack == 'modern'
+        env:
+          CHECK_BASE: ${{ steps.images.outputs.base_ref }}
+        run: |
+          docker run --rm --network none --shm-size=512m \
+            -v "$PWD:/repo:ro" "$CHECK_BASE" \
+            bash /repo/scripts/petclinic/test-verifier.sh
+
       # Save both tags together so shared base layers occur only once. These
       # short-lived artifacts work for fork PRs without registry write access.
       - name: Export prepared images

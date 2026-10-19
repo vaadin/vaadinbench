@@ -25,7 +25,7 @@
 
 set -euo pipefail
 
-PGBIN=${VB_PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)}
+PGBIN=${VB_PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)}
 DATA=${VB_PGDATA:-/var/lib/vb-postgres/data}
 LOG=${VB_PGLOG:-/var/lib/vb-postgres/server.log}
 PORT=5432
@@ -51,13 +51,14 @@ psql_admin() {
     PGOPTIONS='-c client_min_messages=warning' "$PGBIN/psql" -X -q -v ON_ERROR_STOP=1 -h localhost -p "$PORT" -U postgres -d postgres "$@"
 }
 
-start() {
-    ready && return 0
-
+lock_cluster() {
     mkdir -p "$(dirname "$DATA")" "$(dirname "$LOG")"
     exec 9>"$(dirname "$DATA")/.lock"
     flock 9
-    # Another caller may have started it while this one waited for the lock.
+}
+
+start() (
+    lock_cluster
     ready && return 0
 
     if [ "$(id -u)" = 0 ]; then
@@ -82,22 +83,39 @@ pg_stat_statements.track = all
 CONF
     fi
 
-    # A server that does not answer but left its pid file behind died with the
-    # container — an image layer, a killed trial. The pid in it may now belong to
-    # an unrelated process, which PostgreSQL would take for a live postmaster.
-    rm -f "$DATA/postmaster.pid"
+    # Not ready does not mean dead: a live postmaster can be starting, stopping,
+    # or recovering. Never remove its interlock or start a second server.
+    if [ -f "$DATA/postmaster.pid" ]; then
+        local pid
+        pid=$(head -1 "$DATA/postmaster.pid")
+        if [[ ! "$pid" =~ ^[1-9][0-9]*$ ]]; then
+            echo "vb-postgres: invalid postmaster.pid; refusing to remove it" >&2
+            exit 1
+        fi
+        if kill -0 "$pid" 2>/dev/null || [ -d "/proc/$pid" ]; then
+            for ((attempt = 0; attempt < 60; attempt++)); do
+                ready && return 0
+                sleep 1
+            done
+            echo "vb-postgres: live postmaster $pid is not ready; leaving its pid file intact" >&2
+            exit 1
+        fi
+        rm -f "$DATA/postmaster.pid"
+    fi
 
-    if ! as_owner "$PGBIN/pg_ctl" -D "$DATA" -l "$LOG" -w -t 60 start >/dev/null; then
+    # pg_ctl must not pass our lifecycle lock to the long-lived server.
+    if ! as_owner "$PGBIN/pg_ctl" -D "$DATA" -l "$LOG" -w -t 60 start 9>&- >/dev/null; then
         echo "vb-postgres: the server did not start; its log follows" >&2
         tail -20 "$LOG" >&2
         exit 1
     fi
-}
+)
 
-stop() {
+stop() (
+    lock_cluster
     [ -s "$DATA/PG_VERSION" ] || return 0
     as_owner "$PGBIN/pg_ctl" -D "$DATA" -m fast -w stop >/dev/null 2>&1 || true
-}
+)
 
 valid_name() {
     case "$1" in

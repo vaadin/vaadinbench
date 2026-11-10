@@ -77,7 +77,9 @@ class ViewAgentBoundary(unittest.TestCase):
                     self.assertIn('! command -v ui-check', dockerfile)
                     self.assertNotRegex(dockerfile, r'COPY .*ui-check')
                     self.assertIn('npm install -g @playwright/cli@', dockerfile)
-                    self.assertIn('playwright-cli install-browser chromium --with-deps', dockerfile)
+                    self.assertIn('playwright-cli install-browser chromium', dockerfile)
+                    # OS dependencies come from the digest-pinned agents image.
+                    self.assertNotIn('--with-deps', dockerfile)
                     for target in ('agents', 'claude'):
                         self.assertIn(f'playwright-cli install --skills={target} --global', dockerfile)
                     self.assertFalse((task / 'environment/browser-tools').exists())

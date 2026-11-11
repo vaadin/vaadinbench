@@ -38,3 +38,6 @@ server protocol tests, scrolling, frozen cells, templates and retention checks.
 The target uses Vaadin 24.10.7, the [last free Vaadin 24 release](https://vaadin.com/roadmap).
 Later extended-maintenance releases require a license and cannot be used by the
 public offline benchmark. The original Vaadin 14 starting point stays unchanged.
+
+Karibu-Testing stays on 2.4.4, the [supported Vaadin 24 line](https://github.com/mvysny/karibu-testing/blob/master/karibu-testing-v10/README.md).
+Karibu 2.6 and later require Vaadin 25.

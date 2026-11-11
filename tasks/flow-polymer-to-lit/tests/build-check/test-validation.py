@@ -34,7 +34,7 @@ class RequirementsTest(unittest.TestCase):
         self.assertTrue(self.check_pom(lambda s: s.replace('<maven.compiler.release>17', '<maven.compiler.release>25')))
 
     def test_wrong_jetty_rejected(self):
-        self.assertTrue(self.check_pom(lambda s: s.replace('12.0.38', '12.0.37')))
+        self.assertTrue(self.check_pom(lambda s: s.replace('12.0.41', '12.0.37')))
 
     def test_jar_content_and_bytecode(self):
         with tempfile.TemporaryDirectory() as tmp:

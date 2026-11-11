@@ -18,7 +18,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.1</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -26,12 +26,19 @@
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vaadin.version>25.3.2</vaadin.version>
+        <vaadin.version>25.3.5</vaadin.version>
         <karibu.version>2.7.3</karibu.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+        <!-- Match the standalone checker and the cached Chromium revision. -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.64.0</version>
+            <scope>test</scope>
+        </dependency>
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>
@@ -67,7 +74,7 @@
         <dependency>
             <groupId>org.vaadin.addons</groupId>
             <artifactId>dramafinder</artifactId>
-            <version>1.1.6</version>
+            <version>2.0.1</version>
             <scope>test</scope>
         </dependency>
 

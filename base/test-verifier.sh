@@ -398,7 +398,7 @@ mkdir -p "$fe_toolchain/node_modules/.vaadin" "$fe_toolchain/node_modules/lit" \
          "$fe_app/src/main/resources/META-INF/resources/frontend/src" "$fe_work/logs"
 printf '{"dependencies":{"lit":"3.3.1"},"vaadin":{"hash":"abc"}}\n' \
     >"$fe_toolchain/package.json"
-printf '{"vaadinVersion":"24.8.17","hash":"abc","projectFolder":"/warmup/work/app"}\n' \
+printf '{"vaadinVersion":"24.10.7","hash":"abc","projectFolder":"/warmup/work/app"}\n' \
     >"$fe_toolchain/node_modules/.vaadin/vaadin.json"
 printf 'lit\n' >"$fe_toolchain/node_modules/lit/package.json"
 printf '{"name":"the agent'"'"'s own"}\n' >"$fe_app/package.json"

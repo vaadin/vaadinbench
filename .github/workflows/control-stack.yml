@@ -30,7 +30,7 @@ jobs:
         with:
           set-host: true # Harbor SDK clients must use this same daemon too.
           daemon-config: |
-            {"features": {"containerd-snapshotter": true}}
+            {"features": {"containerd-snapshotter": true}, "dns": ["1.1.1.1", "8.8.8.8"]}
       - uses: docker/setup-buildx-action@v4
         with:
           driver: docker
@@ -153,7 +153,7 @@ jobs:
         with:
           set-host: true
           daemon-config: |
-            {"features": {"containerd-snapshotter": true}}
+            {"features": {"containerd-snapshotter": true}, "dns": ["1.1.1.1", "8.8.8.8"]}
       - uses: docker/setup-buildx-action@v4
         with:
           driver: docker

@@ -398,7 +398,7 @@ assert pinned and pinned.group(1) == OPENCODE_VERSION, (pinned, OPENCODE_VERSION
 # `run` subcommand and rejects it before one, so Harbor's order is rewritten;
 # the prompt that follows -- here written to look like that same command -- is
 # left exactly as Harbor quoted it.
-prompt = "'write opencode --model=x run'"
+prompt = "'write opencode --model=x run --dangerously-skip-permissions -- text'"
 harbor_command = (
     ". ~/.nvm/nvm.sh; "
     f"opencode --model={agent.model_name} run --format=json --thinking "
@@ -409,8 +409,12 @@ environment = InstalledEnvironment()
 asyncio.run(agent.exec_as_agent(environment, command=harbor_command))
 [passed] = environment.commands
 assert f"opencode run --model={agent.model_name} --format=json" in passed, passed
+assert f"--auto -- {prompt}" in passed, passed
 assert f"--model={agent.model_name} run" not in passed, passed
-assert passed.endswith(harbor_command[harbor_command.index(" --format=json"):]), passed
+assert passed.endswith(
+    f"--format=json --thinking --auto -- {prompt} "
+    "2>&1 </dev/null | stdbuf -oL tee /logs/agent/opencode.txt"
+), passed
 
 # The check --print-config cannot make: every skill source any row carries is put
 # through the call a real run makes, and must come back as a directory that holds

@@ -69,7 +69,7 @@ class PreinstalledOpenCode(OpenCode):
         cwd: str | None = None,
         timeout_sec: int | None = None,
     ) -> Any:
-        """Move --model behind the `run` subcommand, where v2 takes it.
+        """Adapt Harbor's launch flags to the pinned OpenCode 2.2 CLI.
 
         Rewriting the command Harbor builds, rather than restating the command
         itself here, leaves every other thing Harbor's run() does -- the config
@@ -77,9 +77,15 @@ class PreinstalledOpenCode(OpenCode):
         the pinned Harbor's business. Only the first occurrence is touched: it is
         the command, and anything later is inside the prompt.
         """
+        command = self._MODEL_BEFORE_RUN.sub(r"opencode \2 \1", command, count=1)
+        # OpenCode 2.2 replaced the old noninteractive permission flag with
+        # --auto. Replace only the launch flag, leaving the quoted prompt intact.
+        command = command.replace(
+            " --dangerously-skip-permissions -- ", " --auto -- ", 1
+        )
         return await super().exec_as_agent(
             environment,
-            command=self._MODEL_BEFORE_RUN.sub(r"opencode \2 \1", command, count=1),
+            command=command,
             env=env,
             cwd=cwd,
             timeout_sec=timeout_sec,

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.1</version>
+        <version>4.1.2</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>ai.unifiedprocess.demo</groupId>
@@ -33,15 +33,15 @@
     </scm>
     <properties>
         <java.version>25</java.version>
-        <vaadin.version>25.3.2</vaadin.version>
-        <jooq.version>3.21.8</jooq.version>
+        <vaadin.version>25.3.5</vaadin.version>
+        <jooq.version>3.21.9</jooq.version>
         <!-- VaadinBench: a trial has no Docker, so code generation runs against
              the PostgreSQL server the image provides (vb-postgres) instead of a
              Testcontainers container. -->
         <vaadinbench.codegen.url>jdbc:postgresql://localhost:5432/petclinic_codegen</vaadinbench.codegen.url>
-        <archunit.version>1.5.0</archunit.version>
-        <dramafinder.version>1.1.6</dramafinder.version>
-        <jacoco.version>0.8.15</jacoco.version>
+        <archunit.version>1.5.1</archunit.version>
+        <dramafinder.version>2.0.1</dramafinder.version>
+        <jacoco.version>0.8.16</jacoco.version>
         <!-- The sensors profile below flips this: the traceability sensors and
              the ArchUnit rules read files and class files, not a database. -->
         <jooq.codegen.skip>false</jooq.codegen.skip>
@@ -239,7 +239,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.4</version>
+                <version>3.7.0</version>
                 <executions>
                     <execution>
                         <id>prepare-codegen-database</id>

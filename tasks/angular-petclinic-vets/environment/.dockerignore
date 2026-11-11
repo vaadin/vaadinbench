@@ -1,3 +1,5 @@
 # The environment clones its app; nothing local belongs in its build context.
 *
 !Dockerfile
+!pom-additions.patch
+!overlay/

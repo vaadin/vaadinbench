@@ -59,6 +59,13 @@
         <sonar.exclusions>**/ai/unifiedprocess/demo/petclinic/database/**</sonar.exclusions>
     </properties>
     <dependencies>
+        <!-- Match the standalone checker and the cached Chromium revision. -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.64.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-flyway</artifactId>

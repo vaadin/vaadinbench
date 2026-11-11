@@ -23,5 +23,5 @@
 +        <archunit.version>1.5.1</archunit.version>
 +        <failsafe-plugin.version>3.6.1</failsafe-plugin.version>
      </properties>
- 
+
      <dependencyManagement>

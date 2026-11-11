@@ -21,6 +21,13 @@
     
     <dependencyManagement>
         <dependencies>
+        <!-- Match the standalone checker and the cached Chromium revision. -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.64.0</version>
+            <scope>test</scope>
+        </dependency>
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>

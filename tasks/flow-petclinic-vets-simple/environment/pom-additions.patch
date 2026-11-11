@@ -41,10 +41,26 @@
          <!-- The sensors profile below flips this: the traceability sensors and
               the ArchUnit rules read files and class files, not a database. -->
          <jooq.codegen.skip>false</jooq.codegen.skip>
-@@ -102,21 +105,6 @@
+@@ -56,6 +59,13 @@
+         <sonar.exclusions>**/ai/unifiedprocess/demo/petclinic/database/**</sonar.exclusions>
+     </properties>
+     <dependencies>
++        <!-- Match the standalone checker and the cached Chromium revision. -->
++        <dependency>
++            <groupId>com.microsoft.playwright</groupId>
++            <artifactId>playwright</artifactId>
++            <version>1.64.0</version>
++            <scope>test</scope>
++        </dependency>
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-flyway</artifactId>
+@@ -100,21 +110,6 @@
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
              <artifactId>spring-boot-starter-jooq-test</artifactId>
-             <scope>test</scope>
-         </dependency>
+-            <scope>test</scope>
+-        </dependency>
 -        <dependency>
 -            <groupId>org.springframework.boot</groupId>
 -            <artifactId>spring-boot-testcontainers</artifactId>
@@ -58,12 +74,10 @@
 -        <dependency>
 -            <groupId>org.testcontainers</groupId>
 -            <artifactId>testcontainers-postgresql</artifactId>
--            <scope>test</scope>
--        </dependency>
+             <scope>test</scope>
+         </dependency>
          <!-- Vaadin Browserless Testing: the server-side view test layer (*Test,
-              run by Surefire). The BOM manages the version but not the scope, and
-              without it the framework and JUnit would ship in the production JAR. -->
-@@ -244,30 +232,41 @@
+@@ -244,30 +239,41 @@
                      </execution>
                  </executions>
              </plugin>
@@ -127,7 +141,7 @@
                      </dependency>
                      <dependency>
                          <groupId>org.postgresql</groupId>
-@@ -277,6 +276,35 @@
+@@ -277,6 +283,35 @@
                  </dependencies>
                  <executions>
                      <execution>
@@ -163,7 +177,7 @@
                          <id>generate-jooq-sources</id>
                          <phase>generate-sources</phase>
                          <goals>
-@@ -284,28 +312,22 @@
+@@ -284,28 +319,22 @@
                          </goals>
                          <configuration>
                              <skip>${jooq.codegen.skip}</skip>

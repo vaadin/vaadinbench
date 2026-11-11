@@ -12,7 +12,21 @@
 # difference stays one reviewable hunk that CI can check.
 --- a/pom.xml
 +++ b/pom.xml
-@@ -51,6 +51,13 @@
+@@ -21,6 +21,13 @@
+
+     <dependencyManagement>
+         <dependencies>
++        <!-- Match the standalone checker and the cached Chromium revision. -->
++        <dependency>
++            <groupId>com.microsoft.playwright</groupId>
++            <artifactId>playwright</artifactId>
++            <version>1.64.0</version>
++            <scope>test</scope>
++        </dependency>
+             <dependency>
+                 <groupId>com.vaadin</groupId>
+                 <artifactId>vaadin-bom</artifactId>
+@@ -51,6 +58,13 @@
              <artifactId>spring-boot-starter-test</artifactId>
              <scope>test</scope>
          </dependency>
